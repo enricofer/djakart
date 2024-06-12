@@ -354,10 +354,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
     def mapa(self, obj):
         if obj.pk:
-            evid = ''#obj.piano.the_geom.wkt if obj.piano else ""
-            base = obj.base.mapping_service_url if obj.base else ""
-            
-            html= '''<div id="map"></div><script>window.onload = loadFinestraMappa('%s',['%s','%s'])</script>''' % (evid,base,obj.mapping_service_url)
+            html= '''<div id="map"></div><script>window.onload = loadFinestraMappa()</script>'''
             return format_html(html)
         else:
             return ''
@@ -436,7 +433,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     @require_parameter("nome_nuova_versione")
     def nuova_versione_da_esistente(self, request, obj, **kwargs):
         if obj.pk:
-            nuova_versione = versioni()
+            nuova_versione = version()
             nuova_versione.nome = kwargs["nome_nuova_versione"]
             nuova_versione.base = obj
             nuova_versione.save()

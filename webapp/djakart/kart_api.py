@@ -198,8 +198,8 @@ def crea_nuova_versione(nuova_versione,base,tipo="pg"):
         uri = "postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
             user=KART_SU,
             password=KART_SU_PWD,
-            host=os.environ.get("POSTGRES_SERVER",'pgserver'),
-            port=os.environ.get("POSTGRES_PORT",'pgport'),
+            host=os.environ.get("HOST_EXTERNAL",'pgserver'),
+            port=os.environ.get("POSTGRES_PORT_EXTERNAL",'pgport'),
             db=os.environ.get("VERSION_DB",'pgdb'),
             schema=nuova_versione
         )
@@ -292,8 +292,6 @@ def commit_versione(versione, messaggio):
         commit_cmd = executeKart(["--repo", versione_path, "commit", "-m", messaggio])
 
 def elimina_versione(canc_versione):
-    if canc_versione in (settings.KART_MASTER,"MASTER","PUB"):
-        return
     canc_versione_path = os.path.join(settings.KART_REPO,canc_versione)
     pgschema = elimina_pg_schema(canc_versione)
     if os.path.exists(canc_versione_path):

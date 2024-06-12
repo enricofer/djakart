@@ -161,6 +161,3 @@ KART_REPO = '/kart_versions/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-print ("DATABASES",DATABASES)
-print ("CSRF_TRUSTED_ORIGINS",CSRF_TRUSTED_ORIGINS)

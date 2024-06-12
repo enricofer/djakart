@@ -37,18 +37,18 @@ def is_member(user):
 # Create your views here.
 
 def log(request,versione):
-    obj = versioni.objects.get(nome=versione)
+    obj = version.objects.get(nome=versione)
     jlog = log_versione(obj.nome,jsonoutput=True )
     print (type(jlog))
     return JsonResponse(jlog, safe=False)
 
 def show(request,versione):
-    obj = versioni.objects.get(nome=versione)
+    obj = version.objects.get(nome=versione)
     jshow = show_versione(obj.nome,jsonoutput=True )
     return JsonResponse(jshow, safe=False)
 
 def status(request,versione):
-    obj = versioni.objects.get(nome=versione)
+    obj = version.objects.get(nome=versione)
     status = status_versione(obj.nome)
     return render(request, 'log.html', {'log': status})
 
@@ -56,51 +56,60 @@ def diff(request,versione,hash,parent_hash=""):
     return HttpResponse(genera_diff_versione(versione,hash,parent_hash))
 
 def QGS_progetto(request,versione):
-    versione_obj = versioni.objects.get(nome=versione)
+    versione_obj = version.objects.get(nome=versione)
     progetto = writeQgs(versione_obj)
     response = HttpResponse(progetto, content_type='application/xml')
     response['Content-Disposition'] = 'attachment; filename="%s.qgs"' % versione
     return response
 
 def vlist(request,versione_id):
-    obj = versioni.objects.get(pk=versione_id)
+    obj = version.objects.get(pk=versione_id)
     if obj.pk:
         evid = ""
         base_service = obj.base.mapping_service_url if obj.base else ""
 
-        tutte_versioni = [{
+        all_versions = [{
             "nome": "Versione corrente: " + obj.nome,
             "wms": obj.mapping_service_url,
         }]
 
         if obj.base:
-            tutte_versioni.append({
+            all_versions.append({
                 "nome": "Base corrente: " + obj.base.nome,
                 "wms": obj.base.mapping_service_url,
             })
             if obj.base != obj.origine:
-                tutte_versioni.append({
+                all_versions.append({
                     "nome": "Base origine: " + obj.origine.nome,
                     "wms": obj.origine.mapping_service_url,
                 })
         else:
-            tutte_versioni.append({
-                "nome": "BASE DBT SU OSCAR",
-                "wms": "",
+            all_versions.append({
+                "nome": os.environ.get("UPSTREAM_SERVICE_LABEL","") ,
+                "wms": os.environ.get("UPSTREAM_SERVICE_URL","") ,
             })
 
-        for v in versioni.objects.all():
+        for v in version.objects.all():
             if v.pk == obj.pk or (obj.base and v.pk == obj.base.pk) or (obj.origine and v.pk == obj.origine.pk):
                 continue
-            
-            tutte_versioni.append({
+
+            all_versions.append({
                 "nome": v.nome,
                 "wms": v.mapping_service_url,
             })
     else:
-        tutte_versioni = {}
-    
-    return render(request, 'tutte_le_versioni.js', {'vlist': json.dumps(tutte_versioni)}, content_type="text/javascript")
+        all_versions = {}
+
+    response = render(
+        request, 
+        'tutte_le_versioni.js',
+        {'vlist': json.dumps(all_versions)},
+        content_type="text/javascript"
+    )
+
+    #response['Content-Disposition'] = 'attachment; filename="tutte_le_versioni.js"'
+
+    return response
 
 
 

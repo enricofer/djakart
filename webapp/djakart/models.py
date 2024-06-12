@@ -92,8 +92,8 @@ def getQgsProject(versione_obj):
             #if len(vtab) == 1 and table == 'md':
             #    continue
             table_pg_connection = {
-                "host": os.environ.get("POSTGRES_SERVER", 'postgres_server'),
-                "port": os.environ.get("POSTGRES_PORT", 'postgres_port'),
+                "host": os.environ.get("HOST_EXTERNAL", 'host_external'),
+                "port": os.environ.get("POSTGRES_PORT_EXTERNAL", 'postgres_port_external'),
                 "dbname": os.environ.get("VERSION_DB", 'version_db'),
                 "user": os.environ.get("VERSION_VIEWER", 'version_viewer'),
                 "password": os.environ.get("VERSION_VIEWER_PASSWORD", 'version_viewer_password'),
