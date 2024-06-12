@@ -1,0 +1,57 @@
+{% extends "admin/change_form.html" %}
+{% load add_preserved_filters from admin_urls %}
+{% block extrahead %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.css" />
+    <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.css" />
+    <link rel="stylesheet" href="https://cdn.rawgit.com/Viglino/ol-ext/master/dist/ol-ext.min.css" />
+    <!-- URB PD -->
+    <link rel="stylesheet" href="/static/versioni/versioni_finestramappa.css?id=12323300233" />
+    <link href="/static/repertorio/css/my_admin.css" type="text/css" media="all" rel="stylesheet">
+    {% if ADMIN_SETTINGS.TEST_DEPLOYMENT %}
+    <style>
+        #grp-navigation {
+            background-image: unset !important;
+            background-color: red !important;
+        }
+    </style>
+    {% endif %}
+    <script
+    src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
+    integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8="
+    crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js"></script>
+    <script type="text/javascript" src="https://cdn.rawgit.com/Viglino/ol-ext/master/dist/ol-ext.min.js"></script>
+    <script type="text/javascript" src="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
+    <script type="text/javascript" src="https://epsg.io/3003.js"></script>
+    <!-- URB PD -->
+    <script type="text/javascript" src="/versioni/vlist/{{ object_id }}/"></script>
+    <script type="text/javascript" src="/static/versioni/versioni_finestramappa.js?id=5593470634"></script>
+    <script type="text/javascript" src="/static/repertorio/mappeDiBase.js?id=23909384485"></script>
+    <script src="/static/admin/js/calendar.js"></script>
+    <script type="text/javascript" src="/static/admin/js/admin/DateTimeShortcuts.js"></script>
+    <script type="text/javascript">
+
+    </script>
+{% endblock %}
+
+{% block object-tools-items %}
+  {% for tool in objectactions %}
+    <li class="objectaction-item" data-tool-name="{{ tool.name }}">
+      {% url tools_view_name pk=object_id tool=tool.name as action_url %}
+      <a href="{% add_preserved_filters action_url %}" title="{{ tool.standard_attrs.title }}"
+         {% for k, v in tool.custom_attrs.items %}
+           {{ k }}="{{ v }}"
+         {% endfor %}
+         class="{{ tool.standard_attrs.class }}">
+      {{ tool.label|capfirst }}
+      </a>
+    </li>
+  {% endfor %}
+  {{ block.super }}
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+{% endblock %}

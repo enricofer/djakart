@@ -1,0 +1,68 @@
+-- View: MASTER_pub.cs_blob
+
+-- DROP VIEW "MASTER_pub".cs_blob;
+
+CREATE OR REPLACE VIEW "MASTER_pub".cs_blob
+ AS
+ SELECT row_number() OVER () AS ogc_fid,
+    cs_blob.the_geom,
+    cs_blob.id,
+    cs_blob.filename,
+    cs_blob.norma1,
+    cs_blob.despro1,
+    cs_blob.despro,
+    cs_blob.livello
+   FROM ( SELECT 100000::numeric + z.auto_pk::numeric AS id,
+            st_setsrid(z.geom, 3003) AS the_geom,
+            'PI_CS_aree_coperte'::text AS filename,
+            z."NORMA1" AS norma1,
+            z."DESPRO1" AS despro1,
+            z."DESPRO" AS despro,
+            NULL::character varying AS livello
+           FROM "MASTER_pub"."PI_CS_aree_coperte" z
+        UNION
+         SELECT 200000::numeric + z.auto_pk::numeric AS id,
+            st_setsrid(z.geom, 3003) AS the_geom,
+            'PI_CS_aree_scoperte'::text AS filename,
+            z."NORMA1" AS norma1,
+            z."DESPRO1" AS despro1,
+            z."DESPRO" AS despro,
+            NULL::character varying AS livello
+           FROM "MASTER_pub"."PI_CS_aree_scoperte" z
+        UNION
+         SELECT 300000::numeric + z.auto_pk::numeric AS id,
+            st_buffer(st_setsrid(z.geom, 3003), 1::double precision) AS the_geom,
+            'PI_CS_previsioni_puntuali'::text AS filename,
+            d.descrizione AS norma1,
+            d.nto AS despro1,
+            NULL::character varying AS despro,
+            z."LIVELLO"::character varying AS livello
+           FROM "MASTER_pub"."PI_CS_previsioni_puntuali" z
+             LEFT JOIN "MASTER_pub".pi2030_decodifica d ON z."LIVELLO"::character varying::text = d.tipo::character varying::text
+        UNION
+         SELECT 400000::numeric + z.auto_pk::numeric AS id,
+            st_buffer(st_setsrid(z.geom, 3003), 1::double precision) AS the_geom,
+            'b0501051_PerimetriCS'::text AS filename,
+            d.descrizione AS norma1,
+            d.nto AS despro1,
+            NULL::character varying AS despro,
+            COALESCE(z."SIGLA", z."N_scheda") AS livello
+           FROM "MASTER_pub"."b0501051_PerimetriCS" z
+             LEFT JOIN "MASTER_pub".pi2030_decodifica d ON z."TIPO"::character varying::text = d.tipo::character varying::text
+        UNION
+         SELECT 500000::numeric + z.auto_pk::numeric AS id,
+            st_setsrid(z.geom, 3003) AS the_geom,
+            'PI_CS_UP'::text AS filename,
+            z."ISOLATO"::character varying AS norma1,
+            z."UNITAED"::character varying AS despro1,
+            NULL::character varying AS despro,
+            NULL::character varying AS livello
+           FROM "MASTER_pub"."PI_CS_UP" z) cs_blob
+  ORDER BY cs_blob.id;
+
+ALTER TABLE "MASTER_pub".cs_blob
+    OWNER TO "istanze-amm";
+
+GRANT ALL ON TABLE "MASTER_pub".cs_blob TO "istanze-amm";
+GRANT SELECT ON TABLE "MASTER_pub".cs_blob TO "kart-user";
+

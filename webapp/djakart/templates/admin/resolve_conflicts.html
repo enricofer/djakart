@@ -1,0 +1,292 @@
+
+
+{% extends "admin/base_site.html" %}
+{% load i18n l10n admin_urls %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation
+  delete-selected-confirmation{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.min.css" />
+<link rel="stylesheet" href="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.css" />
+  <!-- Custom CSS -->
+  <style>
+    .conflict_map {
+      width: 600px;
+      height: 400px;
+      padding-bottom: 20px;
+      padding-right: 20px;
+    }
+    .ancestor:before {
+      content: "\2583  ";
+      color: #ff0000;
+      position: relative;
+      bottom: 0.4em;
+    }
+    .theirs:before {
+      content: "\2583  ";
+      color: #00ff00;
+      position: relative;
+      bottom: 0.4em;
+    }
+    .ours:before {
+      content: "\2583  ";
+      color: #0000ff;
+      position: relative;
+      bottom: 0.4em;
+    }
+    .workingcopy:before {
+      content: "\2583  ";
+      color: #ff00ff;
+      position: relative;
+      bottom: 0.4em;
+    }
+    .delete:before {
+      content: "\2583  ";
+      color: #00ffff;
+      position: relative;
+      bottom: 0.4em;
+    }
+    .unresolved:before {
+      content: "\2583  ";
+      color: #ffffff;
+      position: relative;
+      bottom: 0.4em;
+    }
+    td {
+      vertical-align: top !important;
+    }
+  </style>
+  <!-- Custom CSS -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js"></script>
+<script src="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
+<script type="text/javascript">
+
+
+{% localize off %}
+const targetExtent = [1716014, 5023919, 1737137, 5038662];
+{% endlocalize %}
+proj4.defs("EPSG:3003","+proj=tmerc +lat_0=0 +lon_0=9 +k=0.9996 +x_0=1500000 +y_0=0 +ellps=intl +towgs84=-104.1,-49.1,-9.9,0.971,-2.917,0.714,-11.68 +units=m +no_defs");
+var targetProjection = new ol.proj.Projection({
+  code: 'EPSG:3003',
+  extent: targetExtent,
+  units: 'm'
+});
+ol.proj.addProjection(targetProjection);
+
+const conflicts = JSON.parse('{{ conflicts|escapejs }}')
+
+function conflictStyle(feature, resolution) {
+  
+  let color;
+  console.log(feature.getId().split(":").at(-1))
+  switch(feature.getId().split(":").at(-1)) {
+    case 'ancestor':
+      color = '#ff0000'
+      break;
+    case 'theirs':
+      color = '#00ff00'
+      break;
+    case 'ours':
+      color = '#0000ff'
+      break;
+    case 'workingcopy':
+      color = '#ff00ff'
+      break;
+    case 'delete':
+      color = '#00ffff'
+      break;
+    default:
+    color = '#FFffff'
+  }
+  return new ol.style.Style({
+    stroke: new ol.style.Stroke({
+      color: color,
+      width: 3
+    }),
+  })
+};
+
+var decodifica = {
+  'ancestor': 'ORIGINE COMUNE',
+  'theirs': '{{ version_name }}',
+  'ours': '{{ base_name }}',
+  'workingcopy': 'MODIFICHE NON REGISTRATE',
+  'delete': 'CANCELLAZIONE',
+}
+
+function get_conflict_element_group(feat_tit, items) {
+  var htmlgroup = ''+
+'<fieldset>' +
+`    <legend>${feat_tit}</legend>`
+
+  items.forEach(item => {
+    let item_id = item.id;
+    let classname = item_id.split(":").at(-1)
+    let conflict_name = item_id.split(":").slice(0,-1).join(":")
+    let d = decodifica[classname]
+    htmlgroup += '    <div>' +
+`      <input type="radio" id="${item_id}" name="${feat_tit}" value="${classname}">` + 
+`      <label class="${classname}" for="${item_id}">VERSIONE ${d} - ${classname}</label>` + 
+'    </div>'
+  })
+
+  htmlgroup += '    <div>' +
+`      <input type="radio" id="unresolved" name="${feat_tit}" value="unresolved" checked>` + 
+`      <label class="unresolved" for="unresolved">LASCIA IRRISOLTO</label>` + 
+'    </div>' +
+'</fieldset>'
+
+  return htmlgroup
+
+}
+
+function filterGeometry(collection,type){ 
+  var selectedFeatures = new ol.Collection(); 
+  var featArray = collection.getArray();
+  for(var i = 0;i<featArray.length;i++){
+    const ftype = featArray[i].getId().split(":").at(-1)
+    if(ftype == type ){
+      selectedFeatures.push(featArray[i]); 
+    } 
+  } 
+  return selectedFeatures;//returns array of features with selected geom type 
+} 
+
+function getConflictsLayersByType (collection) {
+  const layersByType = []
+  for ( key in decodifica ) {
+    const sub_collection = filterGeometry(collection,key)
+    if ( sub_collection.getLength() > 0 ){
+      layersByType.push(new ol.layer.Vector({
+        source: new ol.source.Vector({
+          features: sub_collection,
+          projection: targetProjection,
+        }),
+        title: decodifica[key],
+        visible: true,
+        style: conflictStyle
+      })
+      )
+    }
+  }
+  return layersByType
+}
+
+function getGroupExtent(layerGroup) {
+  var globext=[9999999999,9999999999,0,0]
+  layerGroup.getLayers().forEach( layer => {
+    var layext = layer.getSource().getExtent()
+    globext = [
+      globext[0] < layext[0] ? globext[0] : layext[0],
+      globext[1] < layext[1] ? globext[1] : layext[1],
+      globext[2] > layext[2] ? globext[2] : layext[2],
+      globext[3] > layext[3] ? globext[3] : layext[3],
+    ]
+  })
+  return globext
+}
+
+window.onload = function(e){ 
+
+    for ( item_id in conflicts ) {
+      var item = conflicts[item_id]
+      var elrow = document.createElement('div');
+      elrow.className = "conflict_row";
+      var eltab = document.createElement('table');
+      eltab.className = "conflict_tab";
+      elrow.appendChild(eltab)
+      var tabrow = document.createElement('tr');
+      eltab.appendChild(tabrow)
+      var elmap = document.createElement('div');
+      //map.setAttribute("onclick", "document.getElementById'lista_mappali').click()");
+      elmap.className = "conflict_map";
+      elmap.id = item.conflict_id;
+      var tabmap = document.createElement('td');
+      tabmap.appendChild(elmap)
+      tabrow.appendChild(tabmap)
+      var tabcol = document.createElement('td');
+      tabcol.className = "conflict_col";
+      tabcol.innerHTML = get_conflict_element_group(item_id,item.geojson.features)
+      tabrow.appendChild(tabcol)
+      document.getElementById("conflicts").appendChild(elrow)
+    };
+
+    const version_wms = new ol.layer.Tile({
+      extent: targetExtent,
+      title: 'VERSIONE',
+      visible: true,
+      source: new ol.source.TileWMS({
+        url: '{{ root_wms }}{{ version_name }}.qgs',
+        params: {layers: 'VERSIONE',CRS:'EPSG:3003','DPI':150},
+        projection: targetProjection
+      })
+    })
+
+    const base_wms = new ol.layer.Tile({
+      extent: targetExtent,
+      title: 'BASE',
+      visible: true,
+      source: new ol.source.TileWMS({
+        url: '{{ root_wms }}{{ base_name }}.qgs',
+        params: {layers: 'VERSIONE',CRS:'EPSG:3003','DPI':150},
+        projection: targetProjection
+      })
+    })
+
+    for ( item_id in conflicts ) {
+      var item = conflicts[item_id]
+
+      const feats = new ol.Collection( new ol.format.GeoJSON().readFeatures(item.geojson));
+      const conflicts_group = new ol.layer.Group({
+        'title': 'Conflitti',
+        'fold': 'open',
+        'layers': getConflictsLayersByType(feats)
+      });
+
+      var olmap = new ol.Map({
+        layers: [
+          base_wms,
+          version_wms,
+          conflicts_group
+        ],
+        target: item.conflict_id,
+        view: new ol.View({
+          projection: targetProjection,
+          center: ol.extent.getCenter(targetExtent),
+          zoom: 2
+        })
+      });
+
+      var layerSwitcher = new ol.control.LayerSwitcher({
+        tipLabel: 'Legenda'
+      });
+      olmap.addControl(layerSwitcher);
+      
+      const ext = getGroupExtent(conflicts_group)
+      olmap.getView().fit(ext, olmap.getSize());
+
+    }
+
+}
+
+</script>
+{% endblock %}
+
+{% block content %}
+  <h1>RISOLUZIONE DEI CONFLITTI FRA LA VERSIONE "{{ version_name }}" (theirs) E LA VERSIONE "{{ base_name }} (ours)"</h1>
+  <br>
+  <form action="" method="GET">{% csrf_token %}
+    
+    <div id="conflicts" class="row">
+    {% if continue %}<h3>Tutti i conflitti sono stati riconciliati</h3>{% endif %}
+    </div>
+
+    <input type="submit" name="confirmation" value="{% if continue %}Completa Merge{% else %}Risolvi i conflitti{% endif %}"/>
+
+    <input type="submit" name="confirmation" value="Risolvi i conflitti rinumerando la versione 'theirs'"/>
+    
+  </form>
+{% endblock %}

@@ -1,0 +1,5 @@
+django
+psycopg2-binary 
+requests
+django-object-actions
+

@@ -1,0 +1,57 @@
+version: '3.9'
+services:
+
+  webapp_djakart:
+    image: djakart:latest
+    #command: docker compose exec webapp_djakart /usr/bin/python3 manage.py makemigrations --no-input
+    #command: docker compose exec webapp_djakart /usr/bin/python3 manage.py createsuperuser --no-input
+    command: >
+      bash -c "/usr/bin/python3 manage.py wait_for_db
+      && /usr/bin/python3 manage.py migrate
+      && /usr/bin/python3 manage.py runserver 0.0.0.0:8000"
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    depends_on:
+      - postgis_djakart
+    volumes:
+      - ./media:/media
+      - ./webapp:/app
+      - ./kart_versions:/kart_versions
+
+  postgis_djakart:
+    image: postgis/postgis:latest
+    env_file:
+      - .env
+    ports:
+      - 5435:5432
+    volumes:
+      - djakart_pgdata:/var/lib/postgresql/pgdata/
+      - ./initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
+
+  qgisserver_djakart:
+    image: qgis-server:latest
+    env_file:
+      - .env
+    volumes:
+      #- ./servizi:/servizi
+      - ./kart_versions:/kart_versions
+      - ./webapp/djakart/otf_qgisserver_plugin:/plugins/otf_qgisserver_plugin
+      - ./000-default.conf:/etc/apache2/sites-enabled/000-default.conf
+
+  nginx_djakart:
+    image: nginx:latest
+    env_file:
+      - .env
+    volumes:
+      - ./webapp/static:/static
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 9889:80
+    depends_on:
+      - qgisserver_djakart
+      - webapp_djakart
+
+volumes:
+  djakart_pgdata:

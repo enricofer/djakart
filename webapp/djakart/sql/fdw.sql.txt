@@ -1,0 +1,76 @@
+-- Foreign Data Wrapper: postgres_fdw
+
+-- DROP FOREIGN DATA WRAPPER IF EXISTS postgres_fdw
+
+CREATE FOREIGN DATA WRAPPER postgres_fdw
+    VALIDATOR public.postgres_fdw_validator
+    HANDLER public.postgres_fdw_handler;
+
+ALTER FOREIGN DATA WRAPPER postgres_fdw
+    OWNER TO postgres;
+
+
+-- Foreign Server: versioni
+
+-- DROP SERVER IF EXISTS versioni
+
+CREATE SERVER versioni
+    FOREIGN DATA WRAPPER postgres_fdw
+    OPTIONS (host 'localhost', port '5432', dbname 'VERSIONI');
+
+ALTER SERVER versioni
+    OWNER TO "istanze-amm";
+
+
+-- User Mapping : istanze-amm
+
+-- DROP USER MAPPING IF EXISTS FOR istanze-amm SERVER versioni
+
+CREATE USER MAPPING FOR "istanze-amm" SERVER versioni
+    OPTIONS ("user" 'istanze-amm', password '***********');
+
+-- FOREIGN TABLE: pi_cs.cs_blob
+
+-- DROP FOREIGN TABLE IF EXISTS pi_cs.cs_blob;
+
+CREATE FOREIGN TABLE IF NOT EXISTS pi_cs.cs_blob(
+    ogc_fid bigint NULL,
+    the_geom geometry NULL,
+    id numeric NULL,
+    filename text NULL COLLATE pg_catalog."default",
+    norma1 character varying NULL COLLATE pg_catalog."default",
+    despro1 character varying(200) NULL COLLATE pg_catalog."default",
+    despro character varying NULL COLLATE pg_catalog."default",
+    livello character varying NULL COLLATE pg_catalog."default"
+)
+    SERVER versioni
+    OPTIONS (schema_name 'MASTER_pub', table_name 'cs_blob');
+
+ALTER FOREIGN TABLE pi_cs.cs_blob
+    OWNER TO "istanze-amm";
+
+
+-- FOREIGN TABLE: pi_variante_generale.pi2030
+
+-- DROP FOREIGN TABLE IF EXISTS pi_variante_generale.pi2030;
+
+CREATE FOREIGN TABLE IF NOT EXISTS pi_variante_generale.pi2030(
+    ogc_fid bigint NULL,
+    id numeric NULL,
+    the_geom geometry NULL,
+    filename text NULL COLLATE pg_catalog."default",
+    zto character varying NULL COLLATE pg_catalog."default",
+    tipo character varying(200) NULL COLLATE pg_catalog."default",
+    sigla character varying NULL COLLATE pg_catalog."default",
+    n_scheda text NULL COLLATE pg_catalog."default",
+    descrizione character varying(200) NULL COLLATE pg_catalog."default",
+    nto character varying(15) NULL COLLATE pg_catalog."default",
+    tipologia character varying NULL COLLATE pg_catalog."default",
+    note character varying NULL COLLATE pg_catalog."default"
+)
+    SERVER versioni
+    OPTIONS (schema_name 'MASTER_pub', table_name 'pi2030');
+
+ALTER FOREIGN TABLE pi_variante_generale.pi2030
+    OWNER TO "istanze-amm";
+

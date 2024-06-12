@@ -1,0 +1,1 @@
+var versioni_wms = JSON.parse('{{vlist|escapejs}}');

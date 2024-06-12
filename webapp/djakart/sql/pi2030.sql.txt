@@ -1,0 +1,27 @@
+-- View: MASTER_pub.pi2030
+
+-- DROP VIEW "MASTER_pub".pi2030;
+
+CREATE OR REPLACE VIEW "MASTER_pub".pi2030
+ AS
+ SELECT pi.ogc_fid,
+    pi.id,
+    st_setsrid(pi.the_geom, 3003) AS the_geom,
+    pi.filename,
+    pi.zto,
+    pi.tipo::character varying(200) AS tipo,
+    pi.sigla,
+    pi.n_scheda,
+    pi2030_decodifica.descrizione,
+    pi2030_decodifica.nto,
+    pi.tipologia,
+    pi.note
+   FROM "MASTER_pub".pi_blob pi
+     LEFT JOIN "MASTER_pub".pi2030_decodifica ON pi.filename = pi2030_decodifica.filename::text AND COALESCE(pi.zto, ''::character varying)::text = COALESCE(pi2030_decodifica.zto, ''::character varying)::text AND COALESCE(pi.tipo, ''::text::character varying)::text = COALESCE(pi2030_decodifica.tipo, ''::text::character varying)::text;
+
+ALTER TABLE "MASTER_pub".pi2030
+    OWNER TO "istanze-amm";
+
+GRANT ALL ON TABLE "MASTER_pub".pi2030 TO "istanze-amm";
+GRANT SELECT ON TABLE "MASTER_pub".pi2030 TO "kart-user";
+

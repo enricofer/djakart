@@ -1,0 +1,27 @@
+
+
+{% extends "admin/base_site.html" %}
+{% load i18n l10n admin_urls %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation
+  delete-selected-confirmation{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+</script>
+
+{% endblock %}
+
+{% block content %}
+  <hr>
+  <br>
+  <form action="" method="POST" enctype="multipart/form-data">{% csrf_token %}
+    
+    <div class="submit-row">
+      {{ form }}
+      <input id="importa" type="submit" name="confirmation" value="importa"/>
+      <input type="submit" name="back" value="No, torna indietro" onclick="window.history.back(); return false;"/>
+    </div>
+  </form>
+{% endblock %}

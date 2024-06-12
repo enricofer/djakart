@@ -1,0 +1,36 @@
+
+
+{% extends "admin/base_site.html" %}
+{% load i18n l10n admin_urls %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation
+  delete-selected-confirmation{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+
+function enableCommit(){
+  if (jQuery("#{{ parameter }}").val() == undefined || jQuery("#{{ parameter }}").val().length == 0){
+    jQuery("#commit").hide()
+  } else {
+    jQuery("#commit").show()
+  }
+}
+
+</script>
+
+{% endblock %}
+
+{% block content %}
+  <hr>
+  <br>
+  <form action="" method="GET">{% csrf_token %}
+    <div class="submit-row">
+      <label for="{{ parameter }}">{{ parameter }}: {{ value }}</label>
+      <input style="width:400px;" type="text" id="{{ parameter }}" name="{{ parameter }}" value="" oninput="enableCommit()"/>
+      <input style="display:none" id="commit" type="submit" name="confirmation" value="Commit"/>
+      <input type="submit" name="back" value="No, torna indietro" onclick="window.history.back(); return false;"/>
+    </div>
+  </form>
+{% endblock %}
