@@ -5,7 +5,7 @@ from django.http import HttpResponseRedirect,JsonResponse,HttpResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test, permission_required
 
-from .models import version, writeQgs
+from .models import version, writeQgs,basemap
 
 from .kart_api import (
     log_versione,
@@ -75,6 +75,15 @@ def QGS_progetto(request,versione):
     response = HttpResponse(progetto, content_type='application/xml')
     response['Content-Disposition'] = 'attachment; filename="%s.qgs"' % versione
     return response
+
+def basemaps_js(request):
+    lyrsdef = "function getLyrs() {return ["
+    for bm in basemap.objects.all():
+        lyrsdef += bm.oldef
+        lyrsdef += ',\n'
+    lyrsdef += ']}\n'
+    return HttpResponse(lyrsdef, content_type="text/javascript; charset=utf-8")
+
 
 def vlist(request,versione_id):
     obj = version.objects.get(pk=versione_id)

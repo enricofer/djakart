@@ -339,8 +339,13 @@ function loadFinestraMappa( polyWKT) {
           }
         }
 
+    let lyrssx = getLyrs()
+    let lyrsdx = getLyrs()
+    let lyrs = [currentOverlay, versionOverlay].concat(lyrssx).concat(lyrsdx)
+    console.log("lyrs", lyrs)
+
     map_glob = new ol.Map({
-        layers: [currentOverlay, dbtOverlaySx, polyOverlaysx, versionOverlay, dbtOverlayDx ,polyOverlaydx ],
+        layers: lyrs,
         controls: ol.control.defaults({
             attribution: false
           }).extend([
@@ -371,7 +376,7 @@ function loadFinestraMappa( polyWKT) {
 
     var currentOverlaySX_control = new comboversioni(versioni_wms,1,"SX")
     if (base_wms == "") {
-        currentOverlaySX_control = new comboversioni([versioni_wms[1]],0,"SX")
+        currentOverlaySX_control = new comboversioni([versioni_wms[1]],1,"SX")
     } 
     map_glob.addControl(currentOverlaySX_control);
     var currentOverlayDX_control = new comboversioni(versioni_wms,0,"DX")
@@ -379,12 +384,12 @@ function loadFinestraMappa( polyWKT) {
 
     // Set stamen on left
     ctrl.addLayer(currentOverlay);
-    ctrl.addLayer(dbtOverlaySx);
-    ctrl.addLayer(polyOverlaysx);
+    ctrl.addLayer(lyrssx[0]);
+    ctrl.addLayer(lyrssx[1]);
     // OSM on right
     ctrl.addLayer(versionOverlay, true);
-    ctrl.addLayer(dbtOverlayDx, true);
-    ctrl.addLayer(polyOverlaydx, true);
+    ctrl.addLayer(lyrsdx[0], true);
+    ctrl.addLayer(lyrsdx[1], true);
 
     map_glob.getView().on('propertychange', function(e) {
         switch (e.key) {

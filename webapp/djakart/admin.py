@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime
 import xml.etree.ElementTree as ET
 
-from .models import version, can_modify, modelli
+from .models import version, can_modify, modelli, basemap
 from .kart_api import (
     crea_nuova_versione,
     elimina_versione, 
@@ -535,3 +535,4 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
 admin.site.register(version, versioniAdmin)
 admin.site.register(modelli)
+admin.site.register(basemap)

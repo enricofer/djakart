@@ -474,6 +474,7 @@ class basemap(models.Model):
 
     REQUEST_PARAMS_DEFAULT = {
         "CRS": SRID,
+        "DPI": 150,
         "LAYERS": ""
     }
 
@@ -482,7 +483,31 @@ class basemap(models.Model):
         verbose_name = "Basemap"
 
     name = models.CharField(max_length=20)
-    oltype = models.CharField(max_length=4, choices=OLTYPE_CHOICES)
+    oltype = models.CharField(max_length=4, choices=OLTYPE_CHOICES, default="WMS")
     url = models.CharField(max_length=200)
-    service_params = JSONField(default={},blank=True, null=True)
-    request_params = JSONField(default={"LAYERS":{}},blank=True, null=True)
+    service_params = JSONField(default=SERVICE_PARAMS_DEFAULT,blank=True, null=True)
+    request_params = JSONField(default=REQUEST_PARAMS_DEFAULT,blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+    
+    @property
+    def oldef(self):
+        lyr_template = """
+new ol.layer.Tile({
+              title: '%s',
+              basemap: true,
+              source: new ol.source.TileWMS({
+                url: '%s',
+                params: %s,
+                projection: '%s'
+              })
+            })"""
+        
+        return lyr_template % (
+            self.name,
+            self.url,
+            str(self.request_params),
+            SRID,
+        )
+        

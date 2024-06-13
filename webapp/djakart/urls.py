@@ -15,6 +15,7 @@ urlpatterns = [
     re_path(r'^vlist/(\d+)/$', views.vlist, name='vlist'),
     re_path(r'^show/(\w+)/$', views.show, name='status'),
     re_path(r'^qgs/(\w+)/$', views.QGS_progetto, name='qgs'),
+    re_path(r'^basemaps/$', views.basemaps_js, name='basemaps'),
     re_path(r'^diff-view/(\w+)/$', views.diff_view, name='diffview'),
     re_path(r'^diff\/(?P<versione>\w+)\/(?P<hash>\w+)\/((?P<parent_hash>\w+)?\/)?$', views.diff, name='diff'),
     #url(r'^diff/(?P<versione>\w+)/(?P<parent_hash>\w+)/(?P<parent_hash>\w+)/$', views.diff, name='diff'),
