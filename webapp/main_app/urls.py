@@ -15,8 +15,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include, re_path
+from django.http import HttpResponse
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     re_path(r'^djakart/', include('djakart.urls')),
+    re_path(r'^healthcheck/', lambda r: HttpResponse())
 ]

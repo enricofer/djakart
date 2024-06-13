@@ -1,4 +1,4 @@
-# docker build --build-context webapp_root=./webapp -t djakart:latest ./build_webapp
+# docker build --build-context webapp_root=./webapp -t enricofer/djakart:latest ./build_webapp
 FROM debian:bookworm-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

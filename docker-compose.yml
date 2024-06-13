@@ -19,6 +19,12 @@ services:
       - ./media:/media
       - ./webapp:/app
       - ./kart_versions:/kart_versions
+    healthcheck:
+      test: curl --fail http://localhost/healthcheck/ || exit 1
+      start_period: 60s
+      interval: 60s
+      timeout: 10s
+      retries: 10
 
   postgis_djakart:
     image: postgis/postgis:latest
