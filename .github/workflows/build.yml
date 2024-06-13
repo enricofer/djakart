@@ -30,7 +30,7 @@ jobs:
           build-contexts: |
             webapp_root=./webapp
           push: false
-          tags: enricofer/djakart-docker-webapp:test-build-only
+          tags: djakart:latest
 
     -  name: QGIS build
        uses: docker/build-push-action@v4
@@ -38,4 +38,9 @@ jobs:
           context: ./build_qgis
           file: ./build_qgis/Dockerfile
           push: false
-          tags: enricofer/djakart-docker-qgis:test-build-only
+          tags: qgis-server:latest
+
+    -  name: DJAKART CONTAINER UP
+       run: docker compose up -d
+
+   
