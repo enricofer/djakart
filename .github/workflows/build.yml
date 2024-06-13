@@ -36,4 +36,4 @@ jobs:
           context: ./build_webapp
           file: ./build_webapp/Dockerfile
           push: false
-          tags: enricofer/ckan-docker-webapp:test-build-only
+          tags: enricofer/djakart-docker-webapp:test-build-only
