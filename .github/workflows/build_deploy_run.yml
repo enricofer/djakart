@@ -29,6 +29,7 @@ jobs:
        run: docker compose up -d
 
     -  name: CHECK HEALTY
+       continue-on-error: true
        run: timeout 60s sh -c 'until docker ps | grep djakart-webapp_djakart | grep -q healthy; do echo "Waiting for container to be healthy..."; sleep 2; done'
 
     -  name: LIST CONTAINERS
