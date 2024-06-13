@@ -8,7 +8,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
 RUN apt-get update && apt-get install -y tzdata && apt-get install -y git
-#  cmake build-essential wget
 
 # RUN git config --global http.proxy http://172.20.0.252:3128
 # RUN git config --global https.proxy http://172.20.0.252:3128
@@ -30,12 +29,6 @@ COPY --from=root requirements.txt /requirements.txt
 RUN python3 -m pip config --global set global.break-system-packages true
 
 RUN pip install -r requirements.txt
-
-#RUN pip install django
-#RUN pip install psycopg2-binary 
-#RUN pip install requests
-#RUN pip install django-object-actions
-#RUN pip install djangorestframework
 
 RUN apt-get clean \
     && rm -rf /var/lib/apt/lists/*

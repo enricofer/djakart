@@ -1,0 +1,39 @@
+name: Build djakart Docker 
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs: 
+  build:  
+    runs-on: ubuntu-latest
+    steps: 
+    -  uses: actions/checkout@v2
+
+    -  name: Set up Docker Buildx
+       uses: docker/setup-buildx-action@v1
+      
+    -  name: Set up QEMU
+       uses: docker/setup-qemu-action@v1
+
+    -  name: QGIS build
+       uses: docker/build-push-action@v2
+       with:
+          context: ./build_qgis
+          file: ./build_qgis/Dockerfile
+          push: false
+          tags: enricofer/djakart-docker-qgis:test-build-only
+
+    -  name: WEBAPP build
+       uses: docker/build-push-action@v2
+       with:
+          context: ./build_webapp
+          file: ./build_webapp/Dockerfile
+          push: false
+          tags: enricofer/ckan-docker-webapp:test-build-only
