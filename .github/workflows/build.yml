@@ -30,7 +30,7 @@ jobs:
           build-contexts: |
             webapp_root=./webapp
           push: false
-          tags: djakart:latest
+          tags: enricofer/djakart:latest
 
     -  name: QGIS build
        uses: docker/build-push-action@v4
@@ -38,9 +38,10 @@ jobs:
           context: ./build_qgis
           file: ./build_qgis/Dockerfile
           push: false
-          tags: qgis-server:latest
+          tags: enricofer/qgis-server:latest
 
-    -  name: DJAKART CONTAINER UP
-       run: docker compose up -d
+    -  name: LIST LOCAL IMAGES
+       run: docker image ls
+      
 
    
