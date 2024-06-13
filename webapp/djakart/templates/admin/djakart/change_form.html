@@ -15,8 +15,9 @@
     <script type="text/javascript" src="https://cdn.rawgit.com/Viglino/ol-ext/master/dist/ol-ext.min.js"></script>
     <script type="text/javascript" src="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
-    <script type="text/javascript" src="https://epsg.io/3003.js"></script>
-    <!-- URB PD -->
+    <!-- DJAKART -->
+    <script type="text/javascript" src="https://epsg.io/{{ crs }}.js"></script>
+    <script type="text/javascript">var CRSID = "EPSG:{{ crs }}"; var CRSCODE = {{ code }};</script>
     <script type="text/javascript" src="/djakart/vlist/{{ object_id }}/"></script>
     <script type="text/javascript" src="/static/djakart/versioni_finestramappa.js?id=5593470634"></script>
     <script type="text/javascript" src="/static/repertorio/mappeDiBase.js?id=23909384485"></script>
