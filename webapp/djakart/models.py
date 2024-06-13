@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from django.conf import settings
 from datetime import datetime, timedelta
 from django.template import Context, Template
+from django.db.models import JSONField
 
 from .kart_api import (
     KartException,
@@ -44,6 +45,8 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
 
 BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
+SRID = os.environ.get("REPO_CRS")
+SRID_CODE = SRID.split(":")[1]
 
 def can_modify(u,v):
     return (v.riservato and u == v.referente) or not v.riservato or u.is_superuser
@@ -100,7 +103,7 @@ def getQgsProject(versione_obj):
                 "schema": versione_name,
                 "table": table,
                 "key_field": "auto_pk",
-                "srid": "3003",
+                "srid": SRID_CODE,
             }
             if table in geo_tab:
                 table_pg_connection["geom_field"] = "geom"
@@ -111,6 +114,7 @@ def getQgsProject(versione_obj):
 
         wms_params = {
             "qgs_path": temp_path ,
+            "crs": SRID,
             "sources": ";".join(sources),
             "names": ";".join(names)
         }
@@ -119,7 +123,7 @@ def getQgsProject(versione_obj):
 SERVICE=MAPCOMPOSITION&PROJECT={qgs_path}&
 SOURCES={sources}&
 NAMES={names}&
-CRS=EPSG:3003&
+CRS={crs}&
 GROUP=VERSIONE&
 OVERWRITE=true""".format(**wms_params)
         wms_get_qgis_params = wms_get_qgis_params.replace("\n","")
@@ -455,3 +459,30 @@ def cancella_versioni(sender, instance, using, **kwargs):
         elimina_versione(instance.nome+"_pub")
     
     #self.salva_cache()
+
+
+class basemap(models.Model):
+
+    OLTYPE_CHOICES = (
+        ('WMS', 'WMS'),
+        ('WMS', 'XYZ'),
+    )
+
+    SERVICE_PARAMS_DEFAULT = {
+
+    }
+
+    REQUEST_PARAMS_DEFAULT = {
+        "CRS": SRID,
+        "LAYERS": ""
+    }
+
+    class Meta:
+        verbose_name_plural = "Basemaps"
+        verbose_name = "Basemap"
+
+    name = models.CharField(max_length=20)
+    oltype = models.CharField(max_length=4, choices=OLTYPE_CHOICES)
+    url = models.CharField(max_length=200)
+    service_params = JSONField(default={},blank=True, null=True)
+    request_params = JSONField(default={"LAYERS":{}},blank=True, null=True)

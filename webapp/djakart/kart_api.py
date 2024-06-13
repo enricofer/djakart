@@ -6,6 +6,7 @@ import os
 import subprocess
 import json
 import re
+import requests
 
 KART_EXE = "/opt/kart/kart_cli"
 
@@ -16,6 +17,9 @@ KART_SU_PWD = os.environ.get("VERSION_ADMIN_PASSWORD", "blabla")
 
 KART_PGUSER = os.environ.get("VERSION_VIEWER", "blabla")
 KART_PGUSER_PWD = os.environ.get("VERSION_VIEWER_PASSWORD", "blabla")
+
+SRID = os.environ.get("REPO_CRS")
+SRID_CODE = SRID.split(":")[1]
 
 class KartException(Exception):
     pass
@@ -81,7 +85,7 @@ def crea_fdw(nuova_versione):
 CREATE FOREIGN TABLE IF NOT EXISTS "{schema}".pua(
     gid integer NULL,
     id_pua character(5) NULL COLLATE pg_catalog."default",
-    the_geom geometry(MultiPolygon,3003) NULL
+    the_geom geometry(MultiPolygon,{crs}) NULL
 )
     SERVER istanze
 	OPTIONS (schema_name 'public', table_name 'pua');
@@ -99,13 +103,20 @@ GRANT ALL ON TABLE "{schema}".pua TO postgres;
     cursor = connections['versions'].cursor()
 
     cursor = connections['versions'].cursor()
+
+    common_params = {
+        "admin": KART_SU,
+        "user": KART_PGUSER,
+        "crs": SRID
+    }
+
     try:
-        print (crea_fdw_template.format(schema=nuova_versione, admin=KART_SU, user=KART_PGUSER))
-        cursor.execute(crea_fdw_template.format(schema=nuova_versione, admin=KART_SU, user=KART_PGUSER))
+        print (crea_fdw_template.format(**common_params, schema=nuova_versione))
+        cursor.execute(crea_fdw_template.format(**common_params, schema=nuova_versione))
         return True
     except Exception as e:
         print(e)
-        cursor.execute(crea_fdw_template.format(schema=nuova_versione+"_pub", admin=KART_SU, user=KART_PGUSER))
+        cursor.execute(crea_fdw_template.format(**common_params, schema=nuova_versione+"_pub"))
         return None
 
 def crea_pg_schema(nuova_versione, readonly=False):
@@ -365,11 +376,15 @@ def genera_diff_versione(versione, hash=None, prev=None, format='html'):
         if commit and not prev:
             prev = commit[0]["parents"][0] 
         if format == 'html':
-            diff_template_location = os.path.join(os.path.dirname(os.path.realpath(__file__)),'diff-view.html')
+            #diff_template_location = os.path.join(os.path.dirname(os.path.realpath(__file__)),'diff-view.html')
+            response = requests.get("http://localhost:8000/djakart/diff-view/%s/" % versione)
+            print (response.text)
+            with open("/tmp/diff-view.html", "w", encoding="utf8") as diff_template:
+                diff_template.write(response.text)
             if hash == 'HEAD':
-                cmd = executeKart(["--repo",versione_path,"diff","-o","html", "--html-template", '%s' % diff_template_location, "--crs", "EPSG:3003", "--output", "-", hash])
+                cmd = executeKart(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", SRID, "--output", "-", hash])
             else:
-                cmd = executeKart(["--repo",versione_path,"diff","-o","html", "--html-template", '%s' % diff_template_location, "--crs", "EPSG:3003", "--output", "-", prev, hash])
+                cmd = executeKart(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", SRID, "--output", "-", prev, hash])
         elif format == 'json':
             cmd = executeKart(["--repo",versione_path,"diff","-o","json", "--output", "-", hash])
         return cmd
@@ -378,7 +393,7 @@ def conflitti_versione(versione):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         conflicts_dir = os.path.join(versione_path,'conflicts')
-        cmd = executeKart(["--repo",versione_path,"conflicts", "--crs", "EPSG:3003","-o","geojson","--output",conflicts_dir])
+        cmd = executeKart(["--repo",versione_path,"conflicts", "--crs", SRID,"-o","geojson","--output",conflicts_dir])
         feats = []
         for gj in os.listdir(conflicts_dir):
             conflict_path = os.path.join(conflicts_dir,gj)

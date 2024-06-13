@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kart Diff: ${title}</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" type="image/svg" href="https://api.iconify.design/ion:git-commit-sharp.svg?height=64" />
+
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap@4.3.1/dist/css/bootstrap-reboot.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.min.css" />
+<link rel="stylesheet" href="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.css" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js"></script>
+<script src="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
+<script type="text/javascript" src="https://epsg.io/{{ crs }}.js"></script>
+<script type="text/javascript"></script>
+
+    <style>
+        body {
+            padding: 30px;
+        }
+        #map {
+            height: 400px;
+        }
+        #tables {
+            margin-top: 30px;
+        }
+        #tables .dataset {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #tables table {
+            table-layout: fixed;
+            border: 2px solid black;
+        }
+        #tables tr {
+            vertical-align: top;
+            border: 1px solid #ccc;
+        }
+        #tables tr.feature {
+            margin-top: 20px;
+            border-top: 2px solid black;
+        }
+        #tables th {
+            position: sticky;
+            top: 0;
+            background-color: white;
+        }
+        #tables td,
+        #tables th {
+            white-space: pre;
+            border: 1px solid #ccc;
+            padding: 0 5px;
+        }
+        #tables tr :first-child {
+            padding-left: 9px;
+        }
+        #tables tr.selected {
+            border: 2px solid blue !important;
+        }
+        #tables tr.selected :first-child {
+            border-left-width: 10px;
+            border-left-color: blue !important;
+            padding-left: 5px;
+        }
+        #tables .geometry {
+            cursor: pointer;
+        }
+        #tables .update.old .diff,
+        .bg-upd-old {
+            background-color: rgba(244,165,130, 0.3);
+        }
+        #tables .update.new .diff,
+        .bg-upd-new {
+            background-color: rgba(146,197,222, 0.3);
+        }
+        #tables .delete td,
+        .bg-del {
+            background-color: rgba(202,0,32, 0.3);
+        }
+        #tables .insert td,
+        .bg-ins {
+            background-color: rgba(5,113,176, 0.3);
+        }
+        #tables .update.old {
+            border-bottom: 0;
+        }
+
+        .legend {
+            margin-top: 30px;
+        }
+        .legend span {
+            display: inline-block;
+            padding: 0 10px;
+            margin-left: 10px;
+        }
+
+        h2 {
+            cursor: pointer;
+        }
+
+        .collapsed:after {
+            content: ' \2913';
+        }
+
+        .expanded:after {
+            content: ' \2912';
+        }
+
+        .mapZoomAll {
+            content: url('https://api.iconify.design/mdi:arrow-expand-all.svg?height=20');
+            position: relative;
+            left: -4px;
+            top: 2px;
+        }
+    </style>
+    <script id="kart-data">const DATA=${geojson_data};</script>
+    <script type="module">
+
+const GEOM = '⭔'
+
+var CRSID = "EPSG:{{ crs }}"
+
+function extendExtent(extA,extB) {
+    return [
+      extA[0] < extB[0] ? extA[0] : extB[0],
+      extA[1] < extB[1] ? extA[1] : extB[1],
+      extA[2] > extB[2] ? extA[2] : extB[2],
+      extA[3] > extB[3] ? extA[3] : extB[3],
+    ]
+}
+
+function getGroupExtent(layerGroup) {
+  var globext=[9999999999,9999999999,0,0]
+  layerGroup.getLayers().forEach( layer => {
+    var layext = layer.getSource().getExtent()
+    globext = extendExtent(globext,layext)
+  })
+  return globext
+}
+
+function decodeChange(changeId) {
+
+    if (changeId.endsWith(':U+')) {
+        return 'updateNew'
+    } else if (changeId.endsWith(':U-')) {
+        return 'updateOld'
+    } else if (changeId.endsWith(':D')) {
+        return 'delete'
+    } else if (changeId.endsWith(':I')) {
+        return 'insert'
+    } else {
+        console.log('unknown ID format: ' + changeId)
+    }
+}
+
+function diffStyle(feature, resolution) {
+    const change = decodeChange(feature.getId())
+    const fill_color = ol.color.asArray(COLORS[change])
+    fill_color[3] = 0.2
+    const stroke_color = ol.color.asArray(COLORS[change])
+    stroke_color[3] = 0.5
+    return new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: stroke_color,
+        width: 2
+      }),
+      
+      fill: new ol.style.Fill({
+          color: fill_color
+      }),
+    })
+  };
+  
+  function highlightStyle(feature, resolution) {
+    const change = decodeChange(feature.getId())
+    const fill_color = ol.color.asArray(COLORS[change])
+    fill_color[3] = 0.3
+    const stroke_color = ol.color.asArray('red')
+    stroke_color[3] = 1
+    return new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: stroke_color,
+        width: 6
+      }),
+      
+      fill: new ol.style.Fill({
+          color: fill_color
+      }),
+    })
+  };
+
+        function buildMap() {
+            window.LABELS = {updateOld: 'Update (previous)', updateNew: 'Update (new)'}
+            window.COLORS = {delete: '#ca0020', insert: '#0571b0', updateOld: '#f4a582', updateNew: '#92c5de'}
+
+            window.layers = {}
+            window.featureMap = {}
+            window.selectedFeature = null
+            window.globExt = [99999999,999999999,0,0]
+            
+            var datasetGroups = []
+            for (let [dataset, diff] of Object.entries(DATA)) {
+                
+                if (!diff.features.length) {
+                    continue
+                }
+
+                const fc = {
+                    'insert': [],
+                    'updateNew': [],
+                    'updateOld': [],
+                    'delete': [],
+                }
+                layers[dataset] = {}
+                featureMap[dataset] = {}
+
+                for (let change of diff.features) {
+                    const id = change['id']
+                    fc[decodeChange(id)].push(change)
+                }
+
+                let changeLayers = []
+                for (let [change, features] of Object.entries(fc)) {
+                    if (features.length) {
+                        
+                        const olfeats = new ol.Collection( new ol.format.GeoJSON().readFeatures({'type': 'FeatureCollection', 'features': features}))
+                        const layer = new ol.layer.Vector({
+                            source: new ol.source.Vector({
+                              features: olfeats,
+                              projection: CRSID,
+                            }),
+                            title: change,
+                            visible: true,
+                            style: diffStyle
+                        })
+                        
+                        olfeats.forEach(feature => {
+                            featureMap[dataset][feature.getId()] = layer
+                        })
+                        
+                        globExt = extendExtent(globExt,layer.getSource().getExtent())
+                        changeLayers.push(layer)
+                        
+                        layers[dataset][change] = layer
+                    }
+                }
+                datasetGroups.push(new ol.layer.Group({'title': dataset,'layers':changeLayers}))
+            }
+            
+            window.map = new ol.Map({
+                layers: [
+                  new ol.layer.Group({'title': 'diff groups','layers':datasetGroups})
+                ],
+                target: 'map',
+                view: new ol.View({
+                  projection: CRSID,
+                  center: ol.extent.getCenter(globExt),
+                  //extent: globExt
+                })
+             });
+                        
+            map.on("click", function(e) {
+                map.forEachFeatureAtPixel(e.pixel, function (feature, layer) {
+                    const dataset = feature.getId().split(":").at(0)
+                    selectMapFeature(dataset, feature.getId())
+                })
+            });
+
+            var layerSwitcher = new ol.control.LayerSwitcher({
+                tipLabel: 'Legenda'
+              });
+            map.addControl(layerSwitcher);
+            
+            map.getView().fit(globExt, map.getSize());
+        }
+
+
+        function selectMapFeature(dataset, fid) {
+            if (selectedFeature) {
+                selectedFeature[0].classList.remove('selected')
+                selectedFeature[1].setStyle(diffStyle);
+                selectedFeature = null
+                map.getView().fit(globExt, map.getSize());
+                return
+            }
+            if (!dataset) {
+                return
+            }
+            let row = document.querySelector('#tables table[data-dataset="' + dataset + '"] tr[data-fid="' + fid + '"]')
+            row.classList.add('selected')
+            let layer = featureMap[dataset][fid]
+            let f = layer.getSource().getFeatureById(fid)
+            if (f) {
+                f.setStyle(highlightStyle);
+                map.getView().fit(f.getGeometry().getExtent(), map.getSize());
+            } else {
+                map.getView().fit(globExt, map.getSize());
+            }
+            
+            selectedFeature = [row, f]
+        }
+        function getFeaturesByRealId(diff) {
+            let featuresByRealId = {}
+            for (let fc of diff.features) {
+                const id = fc['id']
+                const realId = id.split(':')[2]
+                if (id.endsWith(':U+') || id.endsWith(":U-")) {
+                    if (!featuresByRealId[realId]) {
+                        featuresByRealId[realId] = [null, null]
+                    }
+                    if (id.endsWith(':U+')) {
+                        // 'new'
+                        featuresByRealId[realId][1] = fc
+                    } else {
+                        // 'old'
+                        featuresByRealId[realId][0] = fc
+                    }
+                } else if (id.endsWith(':D')) {
+                    featuresByRealId[realId] = [fc, null]
+                } else if (id.endsWith(':I')) {
+                    featuresByRealId[realId] = [null, fc]
+                } else {
+                    console.log('unknown ID format: ' + id)
+                    continue
+                }
+            }
+            return featuresByRealId
+        }
+
+        function getSchema(featuresByRealId) {
+            // if schema has changed then it'll show up in every single feature
+            let oldSchema = null
+            let newSchema = null
+            for (let [realId, change] of Object.entries(featuresByRealId)) {
+                let [fOld, fNew] = change
+                if (fOld && !oldSchema) {
+                    oldSchema = Object.keys(fOld.properties)
+                    oldSchema.splice(0, 0, GEOM)
+                }
+                if (fNew && !newSchema) {
+                    newSchema = Object.keys(fNew.properties)
+                    newSchema.splice(0, 0, GEOM)
+                }
+
+                if (newSchema && oldSchema) {
+                    break
+                }
+            }
+            const unionSchema = new Set((oldSchema || []).concat(newSchema))
+            return Array.from(unionSchema)
+        }
+
+        function buildTables() {
+            function isArrayEqual(a, b) {
+                if (!Array.isArray(b) || (a.length != b.length)) {
+                    return false
+                }
+                return a.every((e, i) => {
+                    if (Array.isArray(e)) {
+                        return isArrayEqual(e, b[i])
+                    } else {
+                        return a[i] === b[i]
+                    }
+                })
+            }
+            function isGeomEqual(a, b) {
+                if (!a && !b) {
+                    return true
+                } else if (!a || !b) {
+                    return false
+                } else if (a.type != b.type) {
+                    return false
+                }
+                return isArrayEqual(a.coordinates, b.coordinates)
+            }
+
+            for (let [dataset, diff] of Object.entries(DATA)) {
+                if (!diff.features.length) {
+                    continue
+                }
+
+                const tables = document.querySelector("#tables")
+
+                let tableWrapper = document.createElement('div')
+                tableWrapper.classList.add('dataset')
+
+                let table = document.createElement('table')
+                table.dataset.dataset = dataset
+                table.classList.add('table')
+
+                let thead = table.createTHead()
+                let row = thead.insertRow()
+
+                let features = getFeaturesByRealId(diff)
+                let schema = getSchema(features)
+
+                for (let col of schema) {
+                    let th = document.createElement("th")
+                    th.appendChild(document.createTextNode(col))
+                    row.appendChild(th)
+                    if (col == GEOM) {
+                        th.classList.add('geometry')
+                    }
+                }
+
+                let tbody = table.createTBody()
+                for (let [realId, fc] of Object.entries(features)) {
+                    let [fOld, fNew] = fc
+                    let change
+                    if (fOld && fNew) {
+                        change = 'update'
+                    } else if (fOld) {
+                        change = 'delete'
+                    } else {
+                        change = 'insert'
+                    }
+                    fOld = fOld || {properties: {}}
+                    fNew = fNew || {properties: {}}
+                    let oldRow = document.createElement('tr')
+                    let newRow = document.createElement('tr')
+                    oldRow.classList.add(change, 'old')
+                    newRow.classList.add(change, 'new')
+                    oldRow.dataset.fid = fOld.id || null
+                    newRow.dataset.fid = fNew.id || null
+
+                    for (let col of schema) {
+                        let oldCell = oldRow.insertCell()
+                        let newCell = newRow.insertCell()
+                        if (col === GEOM) {
+                            oldCell.classList.add('geometry')
+                            newCell.classList.add('geometry')
+                            oldCell.appendChild(document.createTextNode(
+                                (fOld.geometry ? GEOM : '␀')
+                            ))
+                            newCell.appendChild(document.createTextNode(
+                                (fNew.geometry ? GEOM : '␀')
+                            ))
+                            if (!isGeomEqual(fOld.geometry, fNew.geometry)) {
+                                oldCell.classList.add('diff')
+                                newCell.classList.add('diff')
+                            }
+                        } else {
+                            let oldProp = fOld.properties[col]
+                            let newProp = fNew.properties[col]
+                            oldCell.appendChild(document.createTextNode((oldProp == null ? '␀': oldProp)))
+                            newCell.appendChild(document.createTextNode((newProp == null ? '␀': newProp)))
+                            if (oldProp !== newProp) {
+                                oldCell.classList.add('diff')
+                                newCell.classList.add('diff')
+                            }
+                        }
+                    }
+
+                    if (change == 'delete' || change == 'update') {
+                        tbody.appendChild(oldRow)
+                        oldRow.classList.add('feature')
+                    }
+                    if (change == 'insert' || change == 'update') {
+                        tbody.appendChild(newRow)
+                        if (change == 'insert') {
+                            newRow.classList.add('feature')
+                        }
+                    }
+                }
+
+                // click handling
+                table.addEventListener("click", () => {
+                    let td = event.target.closest("td.geometry");
+                    if (td) {
+                        let ds = event.target.closest('[data-dataset]').dataset.dataset
+                        let fid = event.target.closest('tr[data-fid]').dataset.fid
+                        selectMapFeature(ds, fid)
+                    }
+                });
+
+                tableWrapper.appendChild(table)
+
+                let heading = document.createElement('h2')
+                heading.classList.add('collapsed')
+
+
+                heading.appendChild(document.createTextNode(dataset))
+                heading.onclick = function(element){ 
+                    const tab = heading.nextElementSibling
+                    if (tab.style.display == "none") {
+                        tab.style.display = "block"
+                        heading.classList.remove('collapsed')
+                        heading.classList.add('expanded')
+                    } else {
+                        tab.style.display = "none"
+                        heading.classList.add('collapsed')
+                        heading.classList.remove('expanded')
+                    }
+                }
+                tables.appendChild(heading)
+                tableWrapper.style.display = "none" 
+                tables.appendChild(tableWrapper)
+
+            }
+        }
+
+        buildMap()
+        buildTables()
+    </script>
+</head>
+<body>
+    <h1><img src="https://api.iconify.design/ion:git-commit-sharp.svg?height=48"> ${title}</h1>
+
+    <div id='map'></div>
+
+    <div class="legend">
+        Legend:
+        <span class="bg-del">Delete</span>
+        <span class="bg-ins">Insert</span>
+        <span class="bg-upd-old">Update (previous)</span>
+        <span class="bg-upd-new">Update (new)</span>
+    </div>
+
+    <div id='tables'></div>
+</body>
+</html>

@@ -7,7 +7,7 @@ var polyObject, zoningObject //polyJSON, zoningJSON,
 var polyFeatures, polyOverlaysx, polyOverlaydx, currentOverlay, versionOverlay, dbtOverlay;
 
 var targetProjection = new ol.proj.Projection({
-    code: 'EPSG:3003',
+    code: CRSID,
     // The extent is used to determine zoom level 0. Recommended values for a
     // projection's validity extent can be found at http://epsg.io/.
     extent: targetExtent,

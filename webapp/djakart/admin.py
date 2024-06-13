@@ -38,6 +38,8 @@ from .kart_api import (
     pull_versione,
     kart_cmd
 )
+SRID = os.environ.get("REPO_CRS")
+SRID_CODE = SRID.split(":")[1]
 
 class importForm(forms.Form):
     nuovo_dataset = forms.FileField()
@@ -83,6 +85,13 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
         'nuova_versione_da_esistente'
     ]
     ordering = ['nome', ]
+
+    def change_view(self, *args, **kwargs):
+        #extra_context = kwargs["extra_context"] or {}
+        if not "extra_context" in kwargs:
+            kwargs["extra_context"] = {}
+        kwargs["extra_context"]['crs'] = SRID_CODE
+        return super(versioniAdmin, self).change_view(*args, **kwargs) #, extra_context=extra_context
 
     def require_file(parameter,estensione):
         def decorator(func):
@@ -171,6 +180,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
                     context = {
                         "conflicts":  json.dumps(conflicts), 
+                        "crs": SRID,
                         "root_wms":os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external") + '?MAP=/kart_versions/', 
                         "base_name":obj.nome,
                         "version_name":version_name,
