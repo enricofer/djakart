@@ -28,7 +28,7 @@ jobs:
           context: ./build_webapp
           file: ./build_webapp/Dockerfile
           build-contexts: |
-            root:./webapp
+            webapp_root:/webapp
           push: false
           tags: enricofer/djakart-docker-webapp:test-build-only
 

@@ -1,4 +1,4 @@
-# docker build --build-context root=./webapp -t djakart:latest ./build_webapp
+# docker build --build-context webapp_root=./webapp -t djakart:latest ./build_webapp
 FROM debian:bookworm-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -24,7 +24,7 @@ RUN dpkg -i kart_0.15.1_amd64.deb
 RUN kart config --global user.email "you@example.com"
 RUN kart config --global user.name "Your Name"
 
-COPY --from=root requirements.txt /requirements.txt
+COPY --from=webapp_root requirements.txt /requirements.txt
 
 RUN python3 -m pip config --global set global.break-system-packages true
 
