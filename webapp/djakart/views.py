@@ -30,6 +30,8 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
 
 VERSIONI_USER_GROUP = "gis"
+SRID = os.environ.get("REPO_CRS")
+SRID_CODE = SRID.split(":")[1]
 
 def is_member(user):
     return user.groups.filter(name=VERSIONI_USER_GROUP).exists()
@@ -54,6 +56,18 @@ def status(request,versione):
 
 def diff(request,versione,hash,parent_hash=""):
     return HttpResponse(genera_diff_versione(versione,hash,parent_hash))
+
+def diff_view(request,versione):
+    response =  render(
+        request, 
+        'diff-view.html',
+        {'crs': SRID_CODE},
+        content_type="text/html; charset=utf-8"
+    )
+
+    response['Content-Disposition'] = 'inline; filename="diff-view.html"'
+
+    return response
 
 def QGS_progetto(request,versione):
     versione_obj = version.objects.get(nome=versione)
