@@ -20,7 +20,7 @@ services:
       - ./webapp:/app
       - ./kart_versions:/kart_versions
     healthcheck:
-      test: wget -qO- http://localhost:8000/healthcheck || exit 1
+      test: wget -qO- http://localhost:8000/healthcheck/ || exit 1
       start_period: 30s
       interval: 60s
       timeout: 10s
