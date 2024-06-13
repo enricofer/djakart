@@ -11,37 +11,25 @@ on:
       - master
 
 jobs: 
-  build:  
+  build_and_run:  
     runs-on: ubuntu-latest
     steps: 
     -  uses: actions/checkout@v2
 
-    -  name: Set up Docker Buildx
-       uses: docker/setup-buildx-action@v1
-      
-    -  name: Set up QEMU
-       uses: docker/setup-qemu-action@v1
-
     -  name: WEBAPP build
-       uses: docker/build-push-action@v4
-       with:
-          context: ./build_webapp
-          file: ./build_webapp/Dockerfile
-          build-contexts: |
-            webapp_root=./webapp
-          push: false
-          tags: enricofer/djakart:latest
+       run: docker build --build-context webapp_root=./webapp -t enricofer/djakart:latest ./build_webapp
 
     -  name: QGIS build
-       uses: docker/build-push-action@v4
-       with:
-          context: ./build_qgis
-          file: ./build_qgis/Dockerfile
-          push: false
-          tags: enricofer/qgis-server:latest
+       run: docker build -t enricofer/qgis-server:latest ./build_qgis
 
     -  name: LIST LOCAL IMAGES
        run: docker image ls
+
+    -  name: DEPLOY
+       run: docker compose up -d
+
+    -  name: STOP
+       run: docker compose down
       
 
    
