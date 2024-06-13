@@ -1,13 +1,10 @@
 *.pyc
 __pycache__
-/static*
-/media*
-/kart_versions*
+webapp/static*
+media/*
+kart_versions/*
 
 .DS_Store
-/webgis/node_modules
-/webgis/dist
-
 
 # local env files
 .env.local
