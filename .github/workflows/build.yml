@@ -22,14 +22,6 @@ jobs:
     -  name: Set up QEMU
        uses: docker/setup-qemu-action@v1
 
-    -  name: QGIS build
-       uses: docker/build-push-action@v4
-       with:
-          context: ./build_qgis
-          file: ./build_qgis/Dockerfile
-          push: false
-          tags: enricofer/djakart-docker-qgis:test-build-only
-
     -  name: WEBAPP build
        uses: docker/build-push-action@v4
        with:
@@ -37,3 +29,11 @@ jobs:
           file: ./build_webapp/Dockerfile
           push: false
           tags: enricofer/djakart-docker-webapp:test-build-only
+
+    -  name: QGIS build
+       uses: docker/build-push-action@v4
+       with:
+          context: ./build_qgis
+          file: ./build_qgis/Dockerfile
+          push: false
+          tags: enricofer/djakart-docker-qgis:test-build-only
