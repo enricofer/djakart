@@ -76,7 +76,7 @@ def QGS_progetto(request,versione):
     response['Content-Disposition'] = 'attachment; filename="%s.qgs"' % versione
     return response
 
-def basemaps_js(request):
+def ex_basemaps_js(request):
     lyrsdef = "function getLyrs() {return ["
     for bm in basemap.objects.all():
         lyrsdef += bm.oldef
@@ -84,6 +84,9 @@ def basemaps_js(request):
     lyrsdef += ']}\n'
     return HttpResponse(lyrsdef, content_type="text/javascript; charset=utf-8")
 
+def basemaps_js(request,depth):
+    lyrsdef = basemap.getLyrs(depth)
+    return HttpResponse(lyrsdef, content_type="text/javascript; charset=utf-8")
 
 def vlist(request,versione_id):
     obj = version.objects.get(pk=versione_id)
@@ -108,8 +111,8 @@ def vlist(request,versione_id):
                 })
         else:
             all_versions.append({
-                "nome": os.environ.get("UPSTREAM_SERVICE_LABEL","") ,
-                "wms": os.environ.get("UPSTREAM_SERVICE_URL","") ,
+                "nome": "",
+                "wms": ""
             })
 
         for v in version.objects.all():

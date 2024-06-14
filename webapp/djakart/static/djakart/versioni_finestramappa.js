@@ -149,60 +149,24 @@ function loadFinestraMappa( polyWKT) {
         style: polygonStyleFunction
     });
     console.log("base_wms",base_wms)
-    if (base_wms == "") {
-        console.log("Pubblicazione ol.source.TileArcGISRest")
-        currentOverlay = new ol.layer.Tile({
-            extent: targetExtent,
-            title: 'DBT',
-            visible: true,
-            source: new ol.source.TileArcGISRest({
-              url: 'https://oscar.comune.padova.it/server/rest/services/dbt/MapServer',
-              params: {
-                'LAYERS':"show:",
-                'DPI':150,
-                //'TRANSPARENT': 'true'
-              },
-            }),
-          })
-    } else {
-        currentOverlay = new ol.layer.Tile({
-            extent: targetExtent,
-            title: 'DBT BASE',
-            visible: true,
-            source: new ol.source.TileWMS({
-              url: base_wms,
-              params: {layers: 'VERSIONE',CRS:'EPSG:3003','DPI':150}
-            })
-          })
-    }
 
-    dbtOverlaySx = new ol.layer.Tile({
-    extent: targetExtent,
-    title: 'DBT base light',
-    visible: true,
-    source: new ol.source.TileWMS({
-        url: 'https://rapper.comune.padova.it/mapproxy/',
-        params: {layers: 'PI2030_base',CRS:'EPSG:3003','DPI':150}
-      })
-    })
-
-    dbtOverlayDx = new ol.layer.Tile({
-    extent: targetExtent,
-    title: 'DBT versione light',
-    visible: true,
-    source: new ol.source.TileWMS({
-        url: 'https://rapper.comune.padova.it/mapproxy/',
-        params: {layers: 'PI2030_base',CRS:'EPSG:3003','DPI':150}
-      })
+    currentOverlay = new ol.layer.Tile({
+        extent: targetExtent,
+        title: 'BASE',
+        visible: true,
+        source: new ol.source.TileWMS({
+            url: base_wms,
+            params: {layers: 'VERSIONE',CRS:CRSID,'DPI':150}
+        })
     })
 
     versionOverlay = new ol.layer.Tile({
       extent: targetExtent,
-      title: 'DBT VERSIONE',
+      title: 'CURRENT',
       visible: true,
       source: new ol.source.TileWMS({
         url: versione_wms,
-        params: {layers: 'VERSIONE',CRS:'EPSG:3003','DPI':150}
+        params: {layers: 'VERSIONE',CRS:CRSID,'DPI':150}
       })
     })
 
@@ -332,16 +296,13 @@ function loadFinestraMappa( polyWKT) {
 
               target.getSource().setUrl(this.select.value)
               target.getSource().refresh()
-              //polyOverlaysx.getSource().refresh()
-              //polyOverlaydx.getSource().refresh()
-              //map_glob.getView().fit(extent, map_glob.getSize());
-              //evt.preventDefault();
           }
         }
 
-    let lyrssx = getLyrs()
-    let lyrsdx = getLyrs()
-    let lyrs = [currentOverlay, versionOverlay].concat(lyrssx).concat(lyrsdx)
+    let backgroundlyrs = getBackgroundLyrs()
+    let foregroundlyrs = getForegroundLyrs()
+
+    let lyrs = backgroundlyrs.concat([currentOverlay, versionOverlay]).concat(foregroundlyrs)
     console.log("lyrs", lyrs)
 
     map_glob = new ol.Map({
@@ -372,24 +333,21 @@ function loadFinestraMappa( polyWKT) {
     var ctrl = new ol.control.Swipe({"position":slider});
     map_glob.addControl(ctrl);
 
+    if (base_wms == "") {
+        ctrl.set('position', 0.05);
+    }
+
     // CurrentOverlaySX control
 
     var currentOverlaySX_control = new comboversioni(versioni_wms,1,"SX")
-    if (base_wms == "") {
-        currentOverlaySX_control = new comboversioni([versioni_wms[1]],1,"SX")
-    } 
     map_glob.addControl(currentOverlaySX_control);
     var currentOverlayDX_control = new comboversioni(versioni_wms,0,"DX")
     map_glob.addControl(currentOverlayDX_control);
 
     // Set stamen on left
     ctrl.addLayer(currentOverlay);
-    ctrl.addLayer(lyrssx[0]);
-    ctrl.addLayer(lyrssx[1]);
     // OSM on right
     ctrl.addLayer(versionOverlay, true);
-    ctrl.addLayer(lyrsdx[0], true);
-    ctrl.addLayer(lyrsdx[1], true);
 
     map_glob.getView().on('propertychange', function(e) {
         switch (e.key) {

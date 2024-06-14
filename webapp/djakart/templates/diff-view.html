@@ -13,6 +13,8 @@
 <script src="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
 <script type="text/javascript" src="https://epsg.io/{{ crs }}.js"></script>
+<script type="text/javascript" src="/djakart/basemaps/foreground/"></script>
+<script type="text/javascript" src="/djakart/basemaps/background/"></script>
 <script type="text/javascript"></script>
 
     <style>
@@ -247,11 +249,16 @@ function diffStyle(feature, resolution) {
                 }
                 datasetGroups.push(new ol.layer.Group({'title': dataset,'layers':changeLayers}))
             }
+
+
+
+            let backgroundlyrs = getBackgroundLyrs()
+            let foregroundlyrs = getForegroundLyrs()
+
+            let lyrs = backgroundlyrs.concat(new ol.layer.Group({'title': 'diff groups','layers':datasetGroups})).concat(foregroundlyrs)
             
             window.map = new ol.Map({
-                layers: [
-                  new ol.layer.Group({'title': 'diff groups','layers':datasetGroups})
-                ],
+                layers: lyrs,
                 target: 'map',
                 view: new ol.View({
                   projection: CRSID,

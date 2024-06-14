@@ -62,6 +62,8 @@
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js"></script>
 <script src="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
+<script type="text/javascript" src="/djakart/basemaps/foreground/"></script>
+<script type="text/javascript" src="/djakart/basemaps/background/"></script>
 <script type="text/javascript">
 
 
@@ -216,7 +218,7 @@ window.onload = function(e){
 
     const version_wms = new ol.layer.Tile({
       extent: targetExtent,
-      title: 'VERSIONE',
+      title: 'VERSION',
       visible: true,
       source: new ol.source.TileWMS({
         url: '{{ root_wms }}{{ version_name }}.qgs',
@@ -246,12 +248,13 @@ window.onload = function(e){
         'layers': getConflictsLayersByType(feats)
       });
 
+      let backgroundlyrs = getBackgroundLyrs()
+      let foregroundlyrs = getForegroundLyrs()
+  
+      let lyrs = backgroundlyrs.concat([base_wms, version_wms, conflicts_group]).concat(foregroundlyrs)
+
       var olmap = new ol.Map({
-        layers: [
-          base_wms,
-          version_wms,
-          conflicts_group
-        ],
+        layers: lyrs,
         target: item.conflict_id,
         view: new ol.View({
           projection: targetProjection,

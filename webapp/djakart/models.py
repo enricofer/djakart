@@ -178,9 +178,6 @@ class modelli(models.Model):
             os.makedirs(os.path.join(settings.MEDIA_ROOT, path))
         return os.path.join(path,filename)
 
-    verbose_name_plural = "Modelli"
-    verbose_name = "Modello"
-
     titolo = models.CharField(max_length=25)
     descrizione = models.TextField(blank=True,null=True,)
     doc = models.FileField(upload_to=update_filename,)
@@ -189,8 +186,8 @@ class modelli(models.Model):
         return "%d_%s" % (self.pk,self.titolo)
 
     class Meta:
-        verbose_name_plural = "Modelli di documento"
-        verbose_name = "Modello di documento"
+        verbose_name_plural = "QGIS project templates"
+        verbose_name = "QGIS project template"
 
 class version(models.Model):
 
@@ -198,14 +195,15 @@ class version(models.Model):
         verbose_name_plural = "Versions"
         verbose_name = "Version"
 
-    nome = models.CharField(max_length=20)
+    nome = models.CharField(verbose_name="Name", max_length=20)
     base = models.ForeignKey('version',blank=True,null=True, on_delete=models.PROTECT)
-    versione_confronto = models.ForeignKey('version', related_name='confronto',blank=True,null=True, on_delete=models.PROTECT)
+    versione_confronto = models.ForeignKey('version', related_name='confronto',blank=True,null=True, on_delete=models.PROTECT,verbose_name="compare version")
     note = models.TextField(blank=True)
-    progetto = models.FileField(verbose_name="Progetto di QGIS", blank=True)
-    template_qgis = models.ForeignKey('modelli', blank=True,null=True, on_delete=models.PROTECT, )
-    referente = models.ForeignKey(settings.AUTH_USER_MODEL ,blank=True, null=True, on_delete=models.SET_NULL,limit_choices_to={'groups__name': 'gis'},)
-    riservato = models.BooleanField(default=False)
+    progetto = models.FileField(verbose_name="QGIS project", blank=True)
+    extent = JSONField(default=[])
+    template_qgis = models.ForeignKey('modelli', blank=True,null=True, on_delete=models.PROTECT, verbose_name='QGIS template', )
+    referente = models.ForeignKey(settings.AUTH_USER_MODEL ,blank=True, null=True, on_delete=models.SET_NULL,limit_choices_to={'groups__name': 'gis'}, verbose_name="ownership", )
+    riservato = models.BooleanField(verbose_name="reserved",default=False)
 
     def salva_cache(self, update=None):
         start = datetime.now()
@@ -459,14 +457,19 @@ def cancella_versioni(sender, instance, using, **kwargs):
         elimina_versione(instance.nome+"_pub")
     
     #self.salva_cache()
+        
 
+OLTYPE_CHOICES = (
+    ('WMS', 'WMS'),
+    ('XYZ', 'XYZ'),
+)
+
+DEPTH_CHOICES = (
+    ('background', 'background'),
+    ('foreground', 'foreground'),
+)
 
 class basemap(models.Model):
-
-    OLTYPE_CHOICES = (
-        ('WMS', 'WMS'),
-        ('WMS', 'XYZ'),
-    )
 
     SERVICE_PARAMS_DEFAULT = {
 
@@ -484,7 +487,9 @@ class basemap(models.Model):
 
     name = models.CharField(max_length=20)
     oltype = models.CharField(max_length=4, choices=OLTYPE_CHOICES, default="WMS")
+    srid = models.CharField(max_length=20,default=SRID)
     url = models.CharField(max_length=200)
+    depth = models.CharField(max_length=10, choices=DEPTH_CHOICES, default="background")
     service_params = JSONField(default=SERVICE_PARAMS_DEFAULT,blank=True, null=True)
     request_params = JSONField(default=REQUEST_PARAMS_DEFAULT,blank=True, null=True)
 
@@ -493,21 +498,47 @@ class basemap(models.Model):
     
     @property
     def oldef(self):
-        lyr_template = """
-new ol.layer.Tile({
-              title: '%s',
-              basemap: true,
-              source: new ol.source.TileWMS({
-                url: '%s',
-                params: %s,
-                projection: '%s'
-              })
-            })"""
-        
-        return lyr_template % (
-            self.name,
-            self.url,
-            str(self.request_params),
-            SRID,
-        )
-        
+        if self.oltype == "WMS":
+            lyr_template = """
+    new ol.layer.Tile({
+                title: '%s',
+                source: new ol.source.TileWMS({
+                    url: '%s',
+                    params: %s,
+                    projection: '%s'
+                })
+                })"""
+            
+            return lyr_template % (
+                self.name,
+                self.url,
+                str(self.request_params),
+                self.srid,
+            )
+        elif self.oltype == "XYZ":
+            lyr_template = """
+    new ol.layer.Tile({
+                title: '%s',
+                source: new ol.source.XYZ({
+                    url: '%s',
+                    projection: '%s'
+                })
+                })"""
+            
+            return lyr_template % (
+                self.name,
+                self.url,
+                self.srid,
+            )
+
+    @staticmethod
+    def getLyrs(depth):
+        if depth not in dict(DEPTH_CHOICES):
+            return ""
+
+        lyrsdef = "function get%sLyrs() {return [" % depth.capitalize()
+        for bm in basemap.objects.filter(depth=depth):
+            lyrsdef += bm.oldef
+            lyrsdef += ',\n'
+        lyrsdef += ']}\n'
+        return lyrsdef
