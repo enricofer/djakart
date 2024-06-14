@@ -1,35 +1,10 @@
 console.log('FINESTRAMAPPA LOADING')
 
-var targetExtent = [1716014, 5023919, 1737137, 5038662];
-
 var map_glob, getfeature_popup;
 var polyObject, zoningObject //polyJSON, zoningJSON, 
 var polyFeatures, polyOverlaysx, polyOverlaydx, currentOverlay, versionOverlay, dbtOverlay;
 
-var targetProjection = new ol.proj.Projection({
-    code: CRSID,
-    // The extent is used to determine zoom level 0. Recommended values for a
-    // projection's validity extent can be found at http://epsg.io/.
-    extent: targetExtent,
-    units: 'm'
-});
-ol.proj.addProjection(targetProjection);
-
-var UTM32Extent = [719459.961,5024860.053, 733523.921,5038269.875];
-proj4.defs('EPSG:32632', '+proj=utm +zone=32 +datum=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
-var UTM32proj = new ol.proj.Projection({
-    code: 'EPSG:32632',
-    extent: UTM32Extent
-});
-ol.proj.addProjection(UTM32proj);
-
-var ETRS89Extent = [719459.961,5024860.053, 733523.921,5038269.875];
-proj4.defs('EPSG:25832', '+proj=utm +zone=32 +ellps=GRS80 +towgs84=128.8,17.85,0,0,0,0,0 +units=m +no_defs');
-var ETRS89proj = new ol.proj.Projection({
-    code: 'EPSG:25832',
-    extent: ETRS89Extent
-});
-ol.proj.addProjection(ETRS89proj);
+var targetProjection = CRSID
 
 var geoJson_convertitore = new ol.format.GeoJSON();
 
@@ -56,6 +31,31 @@ function copia_clipboard (txt) {
 function hideGeom( ) {
     console.log("hideGeom è ORA")
     $( "h2:contains('localizzazione_mod')" ).parent().hide()
+}
+
+function copia_clipboard (txt) {
+    var $temp = $("<input>");
+    $("body").append($temp);
+    $temp.val(txt).select();
+    document.execCommand("copy");
+    $temp.remove();
+    alert("Testo copiato negli appunti:\n"+txt)
+}
+
+function apply_map_extension() {
+    const mapextent = map_glob.getView().calculateExtent(map_glob.getSize());
+
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) { // 4 = request ended, 200 = success
+            console.log(this.responseText); 
+            location.reload()
+        }
+    };
+    xhttp.open("POST", "/djakart/setextent/" + current_version_id + "/", true);
+    xhttp.send(JSON.stringify({ extent: mapextent }));
+    return true;
+
 }
 
 window.app = {};
@@ -151,7 +151,6 @@ function loadFinestraMappa( polyWKT) {
     console.log("base_wms",base_wms)
 
     currentOverlay = new ol.layer.Tile({
-        extent: targetExtent,
         title: 'BASE',
         visible: true,
         source: new ol.source.TileWMS({
@@ -161,7 +160,6 @@ function loadFinestraMappa( polyWKT) {
     })
 
     versionOverlay = new ol.layer.Tile({
-      extent: targetExtent,
       title: 'CURRENT',
       visible: true,
       source: new ol.source.TileWMS({
@@ -360,8 +358,7 @@ function loadFinestraMappa( polyWKT) {
 
     map_glob.addControl(layerSwitcher);
 
-    extent = polyOverlaysx.getSource().getExtent();
-    map_glob.getView().fit(extent, map_glob.getSize());
+    map_glob.getView().fit(targetExtent, map_glob.getSize());
     
     //enable_layer_state_tracking(map_glob)
 }

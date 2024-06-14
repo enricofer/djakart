@@ -199,7 +199,7 @@ function diffStyle(feature, resolution) {
             window.layers = {}
             window.featureMap = {}
             window.selectedFeature = null
-            window.globExt = [99999999,999999999,0,0]
+            window.globExt = {{ extent }}
             
             var datasetGroups = []
             for (let [dataset, diff] of Object.entries(DATA)) {

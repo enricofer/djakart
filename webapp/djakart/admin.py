@@ -184,6 +184,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         "root_wms":os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external") + '?MAP=/kart_versions/', 
                         "base_name":obj.nome,
                         "version_name":version_name,
+                        "version_id": obj.pk,
                         "continue": not conflicts
                     }
                     return TemplateResponse(request, "admin/resolve_conflicts.html", context)
@@ -231,7 +232,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
         if not obj:
             return ('clean','mapping_service_url', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged')
         if can_modify(request.user,obj):
-            return ('clean','mapping_service_url', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'nome', 'base')
+            return ('apply_map_extent', 'clean','mapping_service_url', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'nome', 'base')
         else:
             return ('clean','mapping_service_url', "template_qgis", 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'referente', 'riservato', 'nome', 'base', 'origine')
 
@@ -241,7 +242,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'note','get_project','mapping_service_url',('referente','riservato'),'mapa')
+                        'fields': ('nome', ('base','merged','clean',),'note','get_project','mapping_service_url',('referente','riservato'),'mapa',('extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
@@ -252,7 +253,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa')
+                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
@@ -385,6 +386,11 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     def clean(self, obj):
         return obj.is_clean
     clean.boolean = True  
+
+    def apply_map_extent(self, obj):
+        link = '''<a href="#" class="button" onclick="apply_map_extension();event.preventDefault();" >Apply map extension</a>'''
+        return format_html(link)
+    apply_map_extent.short_description = ''
 
     @require_confirmation
     def merge(self, request, obj):

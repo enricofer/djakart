@@ -415,7 +415,7 @@ class version(models.Model):
     def save(self, *args, **kwargs):
         self.nome = slugify(self.nome).upper()
         if not self.pk is None:
-            kwargs["update_fields"] = ['note','template_qgis','referente','riservato']
+            kwargs["update_fields"] = ['note','template_qgis','referente','riservato','extent']
         else:
             if self.riservato and not self.referente:
                 self.riservato = False
@@ -424,6 +424,7 @@ class version(models.Model):
                 crea_nuova_versione(self.nome,self.base.nome)
                 #crea progetto
                 self.progetto = get_qgs_filename(self.nome)
+                self.extent = self.base.extent
             else:
                 crea_nuovo_repository(self.nome,bare=False,readonly_workingcopy=self.nome + "_pub")
                 grant_select_schema(self.nome + "_pub")

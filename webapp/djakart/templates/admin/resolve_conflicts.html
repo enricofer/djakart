@@ -64,19 +64,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
 <script type="text/javascript" src="/djakart/basemaps/foreground/"></script>
 <script type="text/javascript" src="/djakart/basemaps/background/"></script>
+<script type="text/javascript" src="/djakart/vlist/{{ version_id }}/"></script>
+<script type="text/javascript" src="https://epsg.io/{{ crs }}.js"></script>
 <script type="text/javascript">
 
 
 {% localize off %}
-const targetExtent = [1716014, 5023919, 1737137, 5038662];
 {% endlocalize %}
-proj4.defs("{{ crs }}","+proj=tmerc +lat_0=0 +lon_0=9 +k=0.9996 +x_0=1500000 +y_0=0 +ellps=intl +towgs84=-104.1,-49.1,-9.9,0.971,-2.917,0.714,-11.68 +units=m +no_defs");
-var targetProjection = new ol.proj.Projection({
-  code: '{{ crs }}',
-  extent: targetExtent,
-  units: 'm'
-});
-ol.proj.addProjection(targetProjection);
+
+var targetProjection = "{{ crs }}"
 
 const conflicts = JSON.parse('{{ conflicts|escapejs }}')
 
@@ -217,7 +213,6 @@ window.onload = function(e){
     };
 
     const version_wms = new ol.layer.Tile({
-      extent: targetExtent,
       title: 'VERSION',
       visible: true,
       source: new ol.source.TileWMS({
@@ -228,7 +223,6 @@ window.onload = function(e){
     })
 
     const base_wms = new ol.layer.Tile({
-      extent: targetExtent,
       title: 'BASE',
       visible: true,
       source: new ol.source.TileWMS({

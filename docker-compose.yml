@@ -3,6 +3,7 @@ services:
 
   webapp_djakart:
     image: enricofer/djakart:latest
+    #command: docker compose exec webapp_djakart /usr/bin/python3 manage.py collectstatic --no-input
     #command: docker compose exec webapp_djakart /usr/bin/python3 manage.py makemigrations --no-input
     #command: docker compose exec webapp_djakart /usr/bin/python3 manage.py createsuperuser --no-input
     command: >

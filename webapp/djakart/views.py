@@ -4,6 +4,7 @@ from django.template import Context, Template
 from django.http import HttpResponseRedirect,JsonResponse,HttpResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test, permission_required
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import version, writeQgs,basemap
 
@@ -58,10 +59,11 @@ def diff(request,versione,hash,parent_hash=""):
     return HttpResponse(genera_diff_versione(versione,hash,parent_hash))
 
 def diff_view(request,versione):
+    versione_obj = version.objects.get(nome=versione)
     response =  render(
         request, 
         'diff-view.html',
-        {'crs': SRID_CODE},
+        {'crs': SRID_CODE, 'extent': versione_obj.extent},
         content_type="text/html; charset=utf-8"
     )
 
@@ -76,17 +78,23 @@ def QGS_progetto(request,versione):
     response['Content-Disposition'] = 'attachment; filename="%s.qgs"' % versione
     return response
 
-def ex_basemaps_js(request):
-    lyrsdef = "function getLyrs() {return ["
-    for bm in basemap.objects.all():
-        lyrsdef += bm.oldef
-        lyrsdef += ',\n'
-    lyrsdef += ']}\n'
-    return HttpResponse(lyrsdef, content_type="text/javascript; charset=utf-8")
-
 def basemaps_js(request,depth):
     lyrsdef = basemap.getLyrs(depth)
     return HttpResponse(lyrsdef, content_type="text/javascript; charset=utf-8")
+
+@login_required
+@csrf_exempt
+def set_version_extent(request, version_id):
+    print ("version_id", version_id)
+    res = "fail"
+    versione_obj = version.objects.get(pk=version_id)
+    if request.method == 'POST':
+        extent = json.loads(request.body)["extent"]
+        print ("extent",extent)
+        versione_obj.extent = extent
+        versione_obj.save()
+        res = "ok"
+    return JsonResponse({"result": res})
 
 def vlist(request,versione_id):
     obj = version.objects.get(pk=versione_id)
@@ -129,7 +137,7 @@ def vlist(request,versione_id):
     response = render(
         request, 
         'tutte_le_versioni.js',
-        {'vlist': json.dumps(all_versions)},
+        {'current_version': obj, 'vlist': json.dumps(all_versions)},
         content_type="text/javascript"
     )
 

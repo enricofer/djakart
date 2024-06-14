@@ -13,6 +13,7 @@ urlpatterns = [
     re_path(r'^log/(\w+)/$', views.log, name='log'),
     re_path(r'^status/(\w+)/$', views.status, name='status'),
     re_path(r'^vlist/(\d+)/$', views.vlist, name='vlist'),
+    re_path(r'^setextent/(\d+)/$', views.set_version_extent, name='set_version_extent'),
     re_path(r'^show/(\w+)/$', views.show, name='status'),
     re_path(r'^qgs/(\w+)/$', views.QGS_progetto, name='qgs'),
     re_path(r'^basemaps/(background|foreground)/$', views.basemaps_js, name='basemaps'),
