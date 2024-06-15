@@ -1,8 +1,10 @@
 *.pyc
 __pycache__
-webapp/static*
-media/*
-kart_versions/*
+data/static/*
+data/media/*
+data/kart_versions/*
+data/pgdata/*
+test_data*
 
 .DS_Store
 
