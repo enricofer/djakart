@@ -43,7 +43,6 @@ services:
     env_file:
       - .env
     volumes:
-      #- ./servizi:/servizi
       - ./data/kart_versions:/kart_versions
       - ./webapp/djakart/otf_qgisserver_plugin:/plugins/otf_qgisserver_plugin
       - ./000-default.conf:/etc/apache2/sites-enabled/000-default.conf
