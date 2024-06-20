@@ -63,7 +63,7 @@ def diff_view(request,versione):
     response =  render(
         request, 
         'diff-view.html',
-        {'crs': SRID_CODE, 'extent': versione_obj.extent},
+        {'crs': versione_obj.crs, 'extent': versione_obj.extent},
         content_type="text/html; charset=utf-8"
     )
 

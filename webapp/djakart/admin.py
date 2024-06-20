@@ -38,8 +38,8 @@ from .kart_api import (
     pull_versione,
     kart_cmd
 )
-SRID = os.environ.get("REPO_CRS")
-SRID_CODE = SRID.split(":")[1]
+#SRID = os.environ.get("REPO_CRS")
+#SRID_CODE = SRID.split(":")[1]
 
 class importForm(forms.Form):
     nuovo_dataset = forms.FileField()
@@ -86,12 +86,13 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     ]
     ordering = ['nome', ]
 
-    def change_view(self, *args, **kwargs):
-        #extra_context = kwargs["extra_context"] or {}
+    def change_view(self, request, object_id, **kwargs):
+        obj = version.objects.get(pk=object_id)
+        print 
         if not "extra_context" in kwargs:
             kwargs["extra_context"] = {}
-        kwargs["extra_context"]['crs'] = SRID_CODE
-        return super(versioniAdmin, self).change_view(*args, **kwargs) #, extra_context=extra_context
+        kwargs["extra_context"]['crs'] = obj.crs.split(":")[1]
+        return super(versioniAdmin, self).change_view(request, object_id, **kwargs) #, extra_context=extra_context
 
     def require_file(parameter,estensione):
         def decorator(func):
@@ -180,7 +181,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
                     context = {
                         "conflicts":  json.dumps(conflicts), 
-                        "crs": SRID,
+                        "crs": obj.crs,
                         "root_wms":os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external") + '?MAP=/kart_versions/', 
                         "base_name":obj.nome,
                         "version_name":version_name,
@@ -232,9 +233,9 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
         if not obj:
             return ('clean','mapping_service_url', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged')
         if can_modify(request.user,obj):
-            return ('apply_map_extent', 'clean','mapping_service_url', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'nome', 'base')
+            return ('apply_map_extent', 'clean','mapping_service_url', 'crs','log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'nome', 'base')
         else:
-            return ('clean','mapping_service_url', "template_qgis", 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'referente', 'riservato', 'nome', 'base', 'origine')
+            return ('clean','mapping_service_url', "template_qgis", 'crs', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'referente', 'riservato', 'nome', 'base', 'origine')
 
     def get_fieldsets(self, request, obj=None):
         if obj:
@@ -242,7 +243,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'note','get_project','mapping_service_url',('referente','riservato'),'mapa',('extent','apply_map_extent'))
+                        'fields': ('nome', ('base','merged','clean',),'note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
@@ -253,7 +254,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('extent','apply_map_extent'))
+                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
@@ -264,7 +265,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             return (
                 ("intestazione", {
                     'classes': ('grp-collapse grp-open',),
-                    'fields': ('nome', 'base','template_qgis','note','referente','riservato')
+                    'fields': ('nome', 'base','template_qgis','crs','note','referente','riservato')
                 }),
             )
 

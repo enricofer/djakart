@@ -45,8 +45,8 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
 
 BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
-SRID = os.environ.get("REPO_CRS")
-SRID_CODE = SRID.split(":")[1]
+#SRID = os.environ.get("REPO_CRS")
+#SRID_CODE = SRID.split(":")[1]
 
 def can_modify(u,v):
     return (v.riservato and u == v.referente) or not v.riservato or u.is_superuser
@@ -103,7 +103,7 @@ def getQgsProject(versione_obj):
                 "schema": versione_name,
                 "table": table,
                 "key_field": "auto_pk",
-                "srid": SRID_CODE,
+                "srid": versione_obj.crs,
             }
             if table in geo_tab:
                 table_pg_connection["geom_field"] = "geom"
@@ -114,7 +114,7 @@ def getQgsProject(versione_obj):
 
         wms_params = {
             "qgs_path": temp_path ,
-            "crs": SRID,
+            "crs": versione_obj.crs,
             "sources": ";".join(sources),
             "names": ";".join(names)
         }
@@ -201,6 +201,7 @@ class version(models.Model):
     note = models.TextField(blank=True)
     progetto = models.FileField(verbose_name="QGIS project", blank=True)
     extent = JSONField(default=[])
+    crs = models.CharField(verbose_name="Coordinate system epsg code", default="EPSG:4326", max_length=20)
     template_qgis = models.ForeignKey('modelli', blank=True,null=True, on_delete=models.PROTECT, verbose_name='QGIS template', )
     referente = models.ForeignKey(settings.AUTH_USER_MODEL ,blank=True, null=True, on_delete=models.SET_NULL,limit_choices_to={'groups__name': 'gis'}, verbose_name="ownership", )
     riservato = models.BooleanField(verbose_name="reserved",default=False)
@@ -231,9 +232,8 @@ class version(models.Model):
             }
         with open (os.path.join('/kart_versions',self.nome+".json"),"w") as cf:
             json.dump(cache_dict, cf) 
-        print ("CACHING VERSIONE:",self.nome, "DELAY:", datetime.now()-start)
         return cache_dict
-    
+
     def cache_timedelta(self):
         if os.path.exists(os.path.join('/kart_versions',self.nome+".json")):
             now = datetime.now()
@@ -409,7 +409,9 @@ class version(models.Model):
         writeQgs(self)
     
     def importa(self,dspath):
-        importa_dataset(self.nome, dspath)
+        ext = importa_dataset(self.nome, dspath, self.extent)
+        self.extent = ext
+        self.save()
         self.salva_cache()
 
     def save(self, *args, **kwargs):
@@ -477,9 +479,9 @@ class basemap(models.Model):
     }
 
     REQUEST_PARAMS_DEFAULT = {
-        "CRS": SRID,
+        "LAYERS": "",
         "DPI": 150,
-        "LAYERS": ""
+        "CRS": ""
     }
 
     class Meta:
@@ -488,7 +490,7 @@ class basemap(models.Model):
 
     name = models.CharField(max_length=20)
     oltype = models.CharField(max_length=4, choices=OLTYPE_CHOICES, default="WMS")
-    srid = models.CharField(max_length=20,default=SRID)
+    srid = models.CharField(max_length=20)
     url = models.CharField(max_length=200)
     depth = models.CharField(max_length=10, choices=DEPTH_CHOICES, default="background")
     service_params = JSONField(default=SERVICE_PARAMS_DEFAULT,blank=True, null=True)
