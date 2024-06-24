@@ -65,7 +65,7 @@
 <script type="text/javascript" src="/djakart/basemaps/foreground/"></script>
 <script type="text/javascript" src="/djakart/basemaps/background/"></script>
 <script type="text/javascript" src="/djakart/vlist/{{ version_id }}/"></script>
-<script type="text/javascript" src="https://epsg.io/{{ crs }}.js"></script>
+<script type="text/javascript" src="https://epsg.io/{{ crscode }}.js"></script>
 <script type="text/javascript">
 
 
@@ -217,7 +217,7 @@ window.onload = function(e){
       visible: true,
       source: new ol.source.TileWMS({
         url: '{{ root_wms }}{{ version_name }}.qgs',
-        params: {layers: 'VERSIONE',CRS:'EPSG:3003','DPI':150},
+        params: {layers: 'VERSIONE',CRS:targetProjection,'DPI':150},
         projection: targetProjection
       })
     })
@@ -227,7 +227,7 @@ window.onload = function(e){
       visible: true,
       source: new ol.source.TileWMS({
         url: '{{ root_wms }}{{ base_name }}.qgs',
-        params: {layers: 'VERSIONE',CRS:'EPSG:3003','DPI':150},
+        params: {layers: 'VERSIONE',CRS:targetProjection,'DPI':150},
         projection: targetProjection
       })
     })
@@ -242,10 +242,16 @@ window.onload = function(e){
         'layers': getConflictsLayersByType(feats)
       });
 
+      const osmlayer = new ol.layer.Tile({
+          title: "openstreetmap",
+          source: new ol.source.OSM(),
+          visible:false
+      })
+
       let backgroundlyrs = getBackgroundLyrs()
       let foregroundlyrs = getForegroundLyrs()
   
-      let lyrs = backgroundlyrs.concat([base_wms, version_wms, conflicts_group]).concat(foregroundlyrs)
+      let lyrs = [osmlayer].concat(backgroundlyrs,[base_wms, version_wms, conflicts_group],foregroundlyrs)
 
       var olmap = new ol.Map({
         layers: lyrs,

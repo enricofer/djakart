@@ -297,10 +297,18 @@ function loadFinestraMappa( polyWKT) {
           }
         }
 
-    let backgroundlyrs = getBackgroundLyrs()
-    let foregroundlyrs = getForegroundLyrs()
+    const osmlayer = new ol.layer.Tile({
+        title: "openstreetmap",
+        source: new ol.source.OSM(),
+        visible:false
+    })
 
-    let lyrs = backgroundlyrs.concat([currentOverlay, versionOverlay]).concat(foregroundlyrs)
+    const backgroundlyrs = getBackgroundLyrs()
+    const foregroundlyrs = getForegroundLyrs()
+    const versionLyrs = [currentOverlay, versionOverlay]
+
+    let lyrs = [osmlayer].concat(backgroundlyrs,versionLyrs,foregroundlyrs)
+    
     console.log("lyrs", lyrs)
 
     map_glob = new ol.Map({
@@ -317,7 +325,9 @@ function loadFinestraMappa( polyWKT) {
             center: ol.extent.getCenter(targetExtent),
             zoom: 2
         })
-    });
+    })
+
+    //lyrs.forEach((item) => map_glob.addLayer(item))
 
     if (currentID != 99999) {
         map_glob.addControl(new toolbar());
@@ -342,9 +352,9 @@ function loadFinestraMappa( polyWKT) {
     var currentOverlayDX_control = new comboversioni(versioni_wms,0,"DX")
     map_glob.addControl(currentOverlayDX_control);
 
-    // Set stamen on left
+    // Set base version on left panel
     ctrl.addLayer(currentOverlay);
-    // OSM on right
+    // set current verision on right panel
     ctrl.addLayer(versionOverlay, true);
 
     map_glob.getView().on('propertychange', function(e) {

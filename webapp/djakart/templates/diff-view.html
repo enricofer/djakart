@@ -7,12 +7,12 @@
     <link rel="shortcut icon" type="image/svg" href="https://api.iconify.design/ion:git-commit-sharp.svg?height=64" />
 
     <link rel="stylesheet" href="https://unpkg.com/bootstrap@4.3.1/dist/css/bootstrap-reboot.min.css"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.css" />
 <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.css" />
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol-debug.js"></script>
 <script src="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.2.1/proj4.js"></script>
-<script type="text/javascript" src="https://epsg.io/{{ crs }}.js"></script>
+<script type="text/javascript" src="https://epsg.io/{{ crscode }}.js"></script>
 <script type="text/javascript" src="/djakart/basemaps/foreground/"></script>
 <script type="text/javascript" src="/djakart/basemaps/background/"></script>
 <script type="text/javascript"></script>
@@ -121,7 +121,7 @@
 
 const GEOM = '⭔'
 
-var CRSID = "EPSG:{{ crs }}"
+var CRSID = "{{ crs }}"
 
 function extendExtent(extA,extB) {
     return [

@@ -398,7 +398,7 @@ def log_versione(versione, jsonoutput=False):
         return cmd
     
 
-def genera_diff_versione(versione, hash=None, prev=None, format='html'):
+def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, format='html'):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         jlog = log_versione(versione,jsonoutput=True)
@@ -412,18 +412,18 @@ def genera_diff_versione(versione, hash=None, prev=None, format='html'):
             with open("/tmp/diff-view.html", "w", encoding="utf8") as diff_template:
                 diff_template.write(response.text)
             if hash == 'HEAD':
-                cmd = executeCmd(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", SRID, "--output", "-", hash])
+                cmd = executeCmd(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", crs, "--output", "-", hash])
             else:
-                cmd = executeCmd(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", SRID, "--output", "-", prev, hash])
+                cmd = executeCmd(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", crs, "--output", "-", prev, hash])
         elif format == 'json':
             cmd = executeCmd(["--repo",versione_path,"diff","-o","json", "--output", "-", hash])
         return cmd
     
-def conflitti_versione(versione):
+def conflitti_versione(versione, crs=SRID):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         conflicts_dir = os.path.join(versione_path,'conflicts')
-        cmd = executeCmd(["--repo",versione_path,"conflicts", "--crs", SRID,"-o","geojson","--output",conflicts_dir])
+        cmd = executeCmd(["--repo",versione_path,"conflicts", "--crs", crs,"-o","geojson","--output",conflicts_dir])
         feats = []
         for gj in os.listdir(conflicts_dir):
             conflict_path = os.path.join(conflicts_dir,gj)

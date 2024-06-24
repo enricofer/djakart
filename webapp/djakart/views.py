@@ -56,14 +56,15 @@ def status(request,versione):
     return render(request, 'log.html', {'log': status})
 
 def diff(request,versione,hash,parent_hash=""):
-    return HttpResponse(genera_diff_versione(versione,hash,parent_hash))
+    versione_obj = version.objects.get(nome=versione)
+    return HttpResponse(genera_diff_versione(versione,hash,parent_hash,crs=versione_obj.crs))
 
 def diff_view(request,versione):
     versione_obj = version.objects.get(nome=versione)
     response =  render(
         request, 
         'diff-view.html',
-        {'crs': versione_obj.crs, 'extent': versione_obj.extent},
+        {'crs': versione_obj.crs,'crscode': versione_obj.crs.split(":")[-1], 'extent': versione_obj.extent},
         content_type="text/html; charset=utf-8"
     )
 

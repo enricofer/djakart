@@ -165,7 +165,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 if request.GET.get('confirmation') is None:
                     request.current_app = modeladmin.admin_site.name
                     conflicts={}
-                    conflitti_json = conflitti_versione(obj.nome)
+                    conflitti_json = conflitti_versione(obj.nome, obj.crs)
                     for feat in conflitti_json["features"]:
                         conflict_id = ":".join(feat["id"].split(":")[0:-1])
                         if conflict_id in conflicts:
@@ -182,6 +182,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                     context = {
                         "conflicts":  json.dumps(conflicts), 
                         "crs": obj.crs,
+                        "crscode": obj.crs.split(":")[-1],
                         "root_wms":os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external") + '?MAP=/kart_versions/', 
                         "base_name":obj.nome,
                         "version_name":version_name,
@@ -211,7 +212,6 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
             wrapper.__name__ = func.__name__
             return wrapper
-
 
 
     class Media:
@@ -453,6 +453,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             nuova_versione = version()
             nuova_versione.nome = kwargs["nome_nuova_versione"]
             nuova_versione.base = obj
+            nuova_versione.crs = obj.crs
             nuova_versione.save()
             return HttpResponseRedirect("/admin/djakart/version/%s/" % nuova_versione.pk)
             
@@ -541,5 +542,14 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
 
 admin.site.register(version, versioniAdmin)
-admin.site.register(modelli)
+
+class templateAdmin(DjangoObjectActions, admin.GISModelAdmin):
+
+    model = modelli
+    readonly_fields = ['descrizione', ]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+admin.site.register(modelli, templateAdmin)
 admin.site.register(basemap)

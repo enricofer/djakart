@@ -45,7 +45,7 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
 
 BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
-#SRID = os.environ.get("REPO_CRS")
+SRID = os.environ.get("REPO_CRS")
 #SRID_CODE = SRID.split(":")[1]
 
 def can_modify(u,v):
@@ -201,7 +201,7 @@ class version(models.Model):
     note = models.TextField(blank=True)
     progetto = models.FileField(verbose_name="QGIS project", blank=True)
     extent = JSONField(default=[])
-    crs = models.CharField(verbose_name="Coordinate system epsg code", default="EPSG:4326", max_length=20)
+    crs = models.CharField(verbose_name="Coordinate system epsg code", default=SRID, max_length=20)
     template_qgis = models.ForeignKey('modelli', blank=True,null=True, on_delete=models.PROTECT, verbose_name='QGIS template', )
     referente = models.ForeignKey(settings.AUTH_USER_MODEL ,blank=True, null=True, on_delete=models.SET_NULL,limit_choices_to={'groups__name': 'gis'}, verbose_name="ownership", )
     riservato = models.BooleanField(verbose_name="reserved",default=False)
@@ -519,29 +519,40 @@ class basemap(models.Model):
                 self.srid,
             )
         elif self.oltype == "XYZ":
-            lyr_template = """
-    new ol.layer.Tile({
-                title: '%s',
-                source: new ol.source.XYZ({
-                    url: '%s',
-                    projection: '%s'
-                })
-                })"""
-            
-            return lyr_template % (
-                self.name,
-                self.url,
-                self.srid,
-            )
+            if "tile.openstreetmap.org" in self.url:
+                lyr_template = """
+        new ol.layer.Tile({
+                    title: '%s',
+                    source: new ol.source.OSM()
+                    })""" % self.name
+            else:
+                lyr_template = """
+        new ol.layer.Tile({
+                    title: '%s',
+                    source: new ol.source.XYZ({
+                        url: '%s',
+                        projection: '%s'
+                    })
+                    })""" % (
+                        self.name,
+                        self.url,
+                        self.srid,
+                    )
+
+            return lyr_template
 
     @staticmethod
     def getLyrs(depth):
         if depth not in dict(DEPTH_CHOICES):
             return ""
 
-        lyrsdef = "function get%sLyrs() {return [" % depth.capitalize()
-        for bm in basemap.objects.filter(depth=depth):
-            lyrsdef += bm.oldef
-            lyrsdef += ',\n'
-        lyrsdef += ']}\n'
-        return lyrsdef
+        depth_bms = basemap.objects.filter(depth=depth)
+        if depth_bms:
+            lyrsdef = "function get%sLyrs() {return [" % depth.capitalize()
+            for bm in basemap.objects.filter(depth=depth):
+                lyrsdef += bm.oldef
+                lyrsdef += ',\n'
+            lyrsdef += ']}\n'
+            return lyrsdef
+        else:
+            return ""
