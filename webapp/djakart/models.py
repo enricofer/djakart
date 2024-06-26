@@ -545,14 +545,10 @@ class basemap(models.Model):
     def getLyrs(depth):
         if depth not in dict(DEPTH_CHOICES):
             return ""
-
-        depth_bms = basemap.objects.filter(depth=depth)
-        if depth_bms:
-            lyrsdef = "function get%sLyrs() {return [" % depth.capitalize()
-            for bm in basemap.objects.filter(depth=depth):
-                lyrsdef += bm.oldef
-                lyrsdef += ',\n'
-            lyrsdef += ']}\n'
-            return lyrsdef
-        else:
-            return ""
+        
+        lyrsdef = "function get%sLyrs() {return [" % depth.capitalize()
+        for bm in basemap.objects.filter(depth=depth):
+            lyrsdef += bm.oldef
+            lyrsdef += ',\n'
+        lyrsdef += ']}\n'
+        return lyrsdef
