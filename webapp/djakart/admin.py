@@ -569,3 +569,7 @@ class templateAdmin(DjangoObjectActions, admin.GISModelAdmin):
 
 admin.site.register(modelli, templateAdmin)
 admin.site.register(basemap)
+
+admin.site.site_title = 'Djakart administration'
+admin.site.site_header = 'Djakart'
+admin.site.index_title = 'Site administration'
