@@ -155,7 +155,7 @@ function loadFinestraMappa( polyWKT) {
         visible: true,
         source: new ol.source.TileWMS({
             url: base_wms,
-            params: {layers: 'VERSIONE',CRS:CRSID,'DPI':150}
+            params: {layers: 'VERSION',CRS:CRSID,'DPI':150}
         })
     })
 
@@ -164,7 +164,7 @@ function loadFinestraMappa( polyWKT) {
       visible: true,
       source: new ol.source.TileWMS({
         url: versione_wms,
-        params: {layers: 'VERSIONE',CRS:CRSID,'DPI':150}
+        params: {layers: 'VERSION',CRS:CRSID,'DPI':150}
       })
     })
 

@@ -124,7 +124,7 @@ SERVICE=MAPCOMPOSITION&PROJECT={qgs_path}&
 SOURCES={sources}&
 NAMES={names}&
 CRS={crs}&
-GROUP=VERSIONE&
+GROUP=VERSION&
 OVERWRITE=true""".format(**wms_params)
         wms_get_qgis_params = wms_get_qgis_params.replace("\n","")
         host = os.environ.get("QGIS_SERVER_EXTERNAL", '')

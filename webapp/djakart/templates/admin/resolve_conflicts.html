@@ -127,7 +127,7 @@ function get_conflict_element_group(feat_tit, items) {
     let d = decodifica[classname]
     htmlgroup += '    <div>' +
 `      <input type="radio" id="${item_id}" name="${feat_tit}" value="${classname}">` + 
-`      <label class="${classname}" for="${item_id}">VERSIONE ${d} - ${classname}</label>` + 
+`      <label class="${classname}" for="${item_id}">VERSION ${d} - ${classname}</label>` + 
 '    </div>'
   })
 
@@ -217,7 +217,7 @@ window.onload = function(e){
       visible: true,
       source: new ol.source.TileWMS({
         url: '{{ root_wms }}{{ version_name }}.qgs',
-        params: {layers: 'VERSIONE',CRS:targetProjection,'DPI':150},
+        params: {layers: 'VERSION',CRS:targetProjection,'DPI':150},
         projection: targetProjection
       })
     })
@@ -227,7 +227,7 @@ window.onload = function(e){
       visible: true,
       source: new ol.source.TileWMS({
         url: '{{ root_wms }}{{ base_name }}.qgs',
-        params: {layers: 'VERSIONE',CRS:targetProjection,'DPI':150},
+        params: {layers: 'VERSION',CRS:targetProjection,'DPI':150},
         projection: targetProjection
       })
     })
@@ -279,17 +279,17 @@ window.onload = function(e){
 {% endblock %}
 
 {% block content %}
-  <h1>RISOLUZIONE DEI CONFLITTI FRA LA VERSIONE "{{ version_name }}" (theirs) E LA VERSIONE "{{ base_name }} (ours)"</h1>
+  <h1>CONFLICTS RESOLUTION BETWEEN"{{ version_name }}" (theirs version) and "{{ base_name }} (ours version)"</h1>
   <br>
   <form action="" method="GET">{% csrf_token %}
     
     <div id="conflicts" class="row">
-    {% if continue %}<h3>Tutti i conflitti sono stati riconciliati</h3>{% endif %}
+    {% if continue %}<h3>All conflicts are reconciled</h3>{% endif %}
     </div>
 
-    <input type="submit" name="confirmation" value="{% if continue %}Completa Merge{% else %}Risolvi i conflitti{% endif %}"/>
+    <input type="submit" name="confirmation" value="{% if continue %}Completa Merge{% else %}Solve conflicts{% endif %}"/>
 
-    <input type="submit" name="confirmation" value="Risolvi i conflitti rinumerando la versione 'theirs'"/>
+    <input type="submit" name="confirmation" value="Solve conflicts renumbering 'theirs' version"/>
     
   </form>
 {% endblock %}
