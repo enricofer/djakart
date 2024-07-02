@@ -87,14 +87,14 @@ WSGI_APPLICATION = 'main_app.wsgi.application'
 print(os.environ.get("VERSION_DB", ""), os.environ.get("POSTGRES_DB", ""))
 
 DATABASES = {}
-DATABASES['versions'] = {
-    'ENGINE': 'django.contrib.gis.db.backends.postgis',
-    'NAME': os.environ.get("VERSION_DB", ""),
-    'USER': os.environ.get("POSTGRES_USER", ""),
-    'PASSWORD' : os.environ.get("POSTGRES_PASSWORD", ""),
-    'HOST' : os.environ.get("POSTGRES_SERVER", ""), 
-    'PORT' : os.environ.get("POSTGRES_PORT", ""),
-}
+#DATABASES['versions'] = {
+#    'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#    'NAME': os.environ.get("VERSION_DB", ""),
+#    'USER': os.environ.get("POSTGRES_USER", ""),
+#    'PASSWORD' : os.environ.get("POSTGRES_PASSWORD", ""),
+#    'HOST' : os.environ.get("POSTGRES_SERVER", ""), 
+#    'PORT' : os.environ.get("POSTGRES_PORT", ""),
+#}
 DATABASES['default'] =  {
     'ENGINE': 'django.contrib.gis.db.backends.postgis',
     'NAME': os.environ.get("POSTGRES_DB", ""),
@@ -103,7 +103,7 @@ DATABASES['default'] =  {
     'HOST' : os.environ.get("POSTGRES_SERVER", ""),
     'PORT' : os.environ.get("POSTGRES_PORT", ""),
 }
-
+DBPREFIX=""
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators

@@ -29,6 +29,7 @@ from .kart_api import (
     kart_cmd,
     importa_dataset,
     aggiorna_riferimenti,
+    get_config,
     config_user_versione,
     list_versioned_tables,
     geo_tables,
@@ -200,7 +201,7 @@ class version(models.Model):
     versione_confronto = models.ForeignKey('version', related_name='confronto',blank=True,null=True, on_delete=models.PROTECT,verbose_name="compare version")
     note = models.TextField(blank=True)
     progetto = models.FileField(verbose_name="QGIS project", blank=True)
-    extent = JSONField(default=[])
+    extent = JSONField(default=[99999999,99999999,-999999,-9999999])
     crs = models.CharField(verbose_name="Coordinate system epsg code", default=SRID, max_length=20)
     template_qgis = models.ForeignKey('modelli', blank=True,null=True, on_delete=models.PROTECT, verbose_name='QGIS template', )
     referente = models.ForeignKey(settings.AUTH_USER_MODEL ,blank=True, null=True, on_delete=models.SET_NULL,limit_choices_to={'groups__name': 'gis'}, verbose_name="ownership", )
@@ -259,6 +260,13 @@ class version(models.Model):
     def project_path(self):
         if self.base:
             return self.progetto.path
+        
+    @property
+    def schema(self):
+        if self.base:
+            return self.nome
+        else:
+            return self.nome + "_pub"
     
     @property
     def publishing_path(self):
@@ -319,11 +327,14 @@ class version(models.Model):
 
     @property
     def cambiamenti_non_registrati(self):
-        return not self.is_clean
+        return not self.is_clean_()
 
     @property
     @cached
     def is_clean(self):
+        return self.is_clean_()
+
+    def is_clean_(self):
         status = self.status
         return ("Nothing to commit, working copy clean" in status) or ("No working copy" in status)
 
@@ -356,6 +367,9 @@ class version(models.Model):
     @property
     def conflitti(self):
         conflitti_versione(self.nome)
+
+    def get_config(self, key):
+        return get_config(self.nome, key)
 
     @property
     @cached
@@ -407,12 +421,17 @@ class version(models.Model):
     
     def aggiorna_progetto(self):
         writeQgs(self)
+
+    @property
+    def kart_tables(self):
+        return list_versioned_tables(self.nome)
     
     def importa(self,dspath):
         ext = importa_dataset(self.nome, dspath, self.extent)
         self.extent = ext
         self.save()
         self.salva_cache()
+        return ext
 
     def save(self, *args, **kwargs):
         self.nome = slugify(self.nome).upper()
@@ -428,13 +447,19 @@ class version(models.Model):
                 self.progetto = get_qgs_filename(self.nome)
                 self.extent = self.base.extent
             else:
-                crea_nuovo_repository(self.nome,bare=False,readonly_workingcopy=self.nome + "_pub")
-                grant_select_schema(self.nome + "_pub")
+                print("save1")
+                crea_nuovo_repository(self.nome,bare=False,readonly_workingcopy=self.schema)
+                print("save2")
+                grant_select_schema(self.schema)
+                print("save3")
                 kart_cmd(self.nome,["import",  "-a", os.path.join(os.path.dirname(__file__),"prototipo.gpkg")]) #"--replace-existing",
+                print("save4")
 
-
+        print("save5")
         self.aggiorna_progetto()
+        print("save6")
         self.salva_cache()
+        print("save7")
         super().save(*args, **kwargs)
 
     def __str__(self):

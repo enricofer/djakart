@@ -4,6 +4,7 @@ data/static/*
 data/media/*
 data/kart_versions/*
 data/pgdata/*
+data/pgdata
 test_data*
 .data/*
 

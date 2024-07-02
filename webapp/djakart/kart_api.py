@@ -1,6 +1,6 @@
 #defaults
 from django.conf import settings
-from django.db import connections
+#from django.db import connections
 
 import os
 import subprocess
@@ -8,10 +8,12 @@ import json
 import re
 import requests
 import sys
+import psycopg2
 
 KART_EXE = "/opt/kart/kart_cli"
 
 PG_SU = os.environ.get("POSTGRES_USER", "blabla")
+PG_PWD = os.environ.get("POSTGRES_PASSWORD", "blabla")
 
 KART_SU = os.environ.get("VERSION_ADMIN", "blabla")
 KART_SU_PWD = os.environ.get("VERSION_ADMIN_PASSWORD", "blabla")
@@ -21,6 +23,25 @@ KART_PGUSER_PWD = os.environ.get("VERSION_VIEWER_PASSWORD", "blabla")
 
 SRID = os.environ.get("REPO_CRS")
 SRID_CODE = SRID.split(":")[1]
+
+connections = {
+    "versions": psycopg2.connect(
+        database=os.environ.get("VERSION_DB", "blabla"),
+        user=os.environ.get("POSTGRES_USER", "blabla"),
+        password=os.environ.get("POSTGRES_PASSWORD", "blabla"),
+        host=os.environ.get("POSTGRES_SERVER", "blabla"),
+        port=os.environ.get("POSTGRES_PORT", "blabla")
+    )
+}
+
+def get_pg_versions_connection():
+    return psycopg2.connect(
+        database=os.environ.get("VERSION_DB", "blabla"),
+        user=os.environ.get("POSTGRES_USER", "blabla"),
+        password=os.environ.get("POSTGRES_PASSWORD", "blabla"),
+        host=os.environ.get("POSTGRES_SERVER", "blabla"),
+        port=os.environ.get("POSTGRES_PORT", "blabla")
+    )
 
 class KartException(Exception):
     pass
@@ -101,9 +122,7 @@ GRANT SELECT ON TABLE "{schema}".pua TO "{user}";
 GRANT ALL ON TABLE "{schema}".pua TO postgres;
     """
 
-    cursor = connections['versions'].cursor()
-
-    cursor = connections['versions'].cursor()
+    cursor = get_pg_versions_connection().cursor()
 
     common_params = {
         "admin": KART_SU,
@@ -131,14 +150,11 @@ def crea_pg_schema(nuova_versione, readonly=False):
 CREATE SCHEMA IF NOT EXISTS "{schema}" AUTHORIZATION "{owner}";    
     '''
 
-    cursor = connections['versions'].cursor()
-    try:
-        print (crea_schema_template.format(schema=nuova_versione, owner=schema_owner))
-        cursor.execute(crea_schema_template.format(schema=nuova_versione, owner=schema_owner))
-        return True
-    except Exception as e:
-        print(e)
-        return None
+    cursor = get_pg_versions_connection().cursor()
+
+    cursor.execute(crea_schema_template.format(schema=nuova_versione, owner=schema_owner))
+    print (crea_schema_template.format(schema=nuova_versione, owner=schema_owner))
+    return True
 
 def grant_select_schema(versione, schema_user=KART_PGUSER, schema_admin=KART_SU):
 
@@ -149,16 +165,26 @@ GRANT SELECT ON ALL TABLES IN SCHEMA "{schema}" TO "{user}";
 GRANT ALL ON ALL TABLES IN SCHEMA "{schema}" TO "{admin}";   
     '''
 
-    cursor = connections['versions'].cursor()
-    try:
+    check_schema_template = "SELECT schema_name FROM information_schema.schemata where schema_name = '%s';"
+
+    cursor = get_pg_versions_connection().cursor()
+
+    cursor.execute( check_schema_template % versione)
+    schema_nobase = cursor.fetchall()
+
+    cursor.execute( check_schema_template % (versione+'_pub'))
+    schema_base = cursor.fetchall()
+
+
+    if schema_nobase:
         cursor.execute(grant_select_template.format(
             schema=versione, 
             admin=schema_admin,
             user=schema_user
         ))
         return True
-    except Exception as e:
-        print(e)
+    elif schema_base:
+        print("SCHEMA BASE")
         cursor.execute(grant_select_template.format(
             schema=versione+"_pub", 
             admin=schema_admin,
@@ -173,7 +199,7 @@ def elimina_pg_schema(nuova_versione):
 DROP SCHEMA IF EXISTS "{schema}" CASCADE   
     '''
 
-    cursor = connections['versions'].cursor()
+    cursor = get_pg_versions_connection().cursor()
     try:
         cursor.execute(canc_schema_template.format(schema=nuova_versione, owner=schema_owner))
         return True
@@ -185,36 +211,35 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
     repo_path = os.path.join(settings.KART_REPO,repo_name)
     cmds = ["init", repo_path]
     if readonly_workingcopy:
+        print ("crea_nuovo_repository params", repo_name, readonly_workingcopy)
         crea_pg_schema(readonly_workingcopy, readonly=True)
         cmds.append("--workingcopy-location")
         cmds.append("postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
-            user=KART_SU,
-            password=KART_SU_PWD,
-            host=os.environ.get("POSTGRES_SERVER",'pgserver'),
-            port=os.environ.get("POSTGRES_PORT",'pgport'),
-            db=os.environ.get("VERSION_DB",'pgdb'),
+            user=PG_SU,
+            password=PG_PWD,
+            host=os.environ.get("HOST_EXTERNAL",'pgserver'),
+            port=os.environ.get("POSTGRES_PORT_EXTERNAL",'pgport'),
+            db=settings.DBPREFIX + os.environ.get("VERSION_DB",'pgdb'),
             schema=readonly_workingcopy
         ))
     if bare:
         cmds = ["init", "--bare", repo_path]
+    print ("KART CMDS", cmds)
     if not os.path.exists(repo_path):
         cmd = executeCmd(cmds)
         return cmd
-    
+
+def get_config(v,key):
+    v_path = os.path.join(settings.KART_REPO,v)
+    res = executeCmd(["config", "-l"])
+    return res
 
 def crea_nuova_versione(nuova_versione,base,tipo="pg"):
     nuova_versione_path = os.path.join(settings.KART_REPO,nuova_versione)
     master_path = os.path.join(settings.KART_REPO,base)
     if tipo == 'pg':
         crea_pg_schema(nuova_versione)
-        uri = "postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
-            user=KART_SU,
-            password=KART_SU_PWD,
-            host=os.environ.get("HOST_EXTERNAL",'pgserver'),
-            port=os.environ.get("POSTGRES_PORT_EXTERNAL",'pgport'),
-            db=os.environ.get("VERSION_DB",'pgdb'),
-            schema=nuova_versione
-        )
+        uri = get_pg_uri(nuova_versione)
     elif tipo == 'gp':
         uri = "" #local geopackage
     if not os.path.exists(nuova_versione_path):
@@ -224,10 +249,33 @@ def crea_nuova_versione(nuova_versione,base,tipo="pg"):
             #clone master
             clone_cmd = executeCmd(["clone", master_path, nuova_versione_path])
             new_branch = executeCmd(["--repo",nuova_versione_path,"checkout", "-b", nuova_versione])
-        new_wc = executeCmd(["--repo",nuova_versione_path,"create-workingcopy", '--delete-existing', uri])
+        new_wc = create_workingcopy(nuova_versione,uri,force=True)
+        grant_select_schema(nuova_versione)
         grant_select_schema(nuova_versione)
         #crea_fdw(nuova_versione)
         serial_pk_setup(nuova_versione)
+
+def get_pg_uri(v):
+    return "postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
+            user=PG_SU,
+            password=PG_PWD,
+            host=os.environ.get("HOST_EXTERNAL",'pgserver'),
+            port=os.environ.get("POSTGRES_PORT_EXTERNAL",'pgport'),
+            db=settings.DBPREFIX + os.environ.get("VERSION_DB",'pgdb'),
+            schema=v
+        )
+
+def create_workingcopy(v, uri=None, force=False):
+    print ("CREATE WORKINGCOPY", v, uri)
+    v_path = os.path.join(settings.KART_REPO,v)
+    cmds = ["--repo",v_path,"create-workingcopy"]
+    if force:
+        cmds.append('--delete-existing')
+    if not uri:
+        cmds.append(get_pg_uri(v))
+    else:
+        cmds.append(uri)
+    return executeCmd(cmds)
 
 def merge_versione(versione, abort=False, confirm=False):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -291,7 +339,8 @@ def kart_cmd(versione,args):
         return kart_cmd
 
 def importa_dataset(versione,ds_path,max_extent=None):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.KART_REPO, versione)
+    print ("versione_path", versione_path)
     if os.path.exists(versione_path):
         if not max_extent:
             max_extent = [sys.float_info.max, sys.float_info.max, -sys.float_info.max, -sys.float_info.max]
@@ -459,7 +508,7 @@ def list_versioned_tables(versione):
         return [ds for ds in ds_list if ds != ""]
 
 def prevent_conflicts_on_ids(versione):
-    cursor = connections['versions'].cursor()
+    cursor = get_pg_versions_connection().cursor()
     for table in list_versioned_tables(versione):
         stepoverseq = ""
 
@@ -525,23 +574,23 @@ def recover_uncommitted_nulls(versione):
             sql = ""
             for corr in corrs:
                 sql += 'UPDATE "{schema}"."{table}" SET "{field}" = {value};\n'.format(**corr)
-            cursor = connections['versions'].cursor()
+            cursor = get_pg_versions_connection().cursor()
             cursor.execute(sql)
 
 def get_schemas():
     sql = """ SELECT nspname FROM pg_catalog.pg_namespace;"""
-    cursor = connections['versions'].cursor()
+    cursor = get_pg_versions_connection().cursor()
     cursor.execute(sql)
     return [row[0] for row in cursor.fetchall()]
 
 def get_sequences(schema):
     sql = """SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = '{schema}' """.format(schema=schema)
-    cursor = connections['versions'].cursor()
+    cursor = get_pg_versions_connection().cursor()
     cursor.execute(sql)
     return [row[0] for row in cursor.fetchall()]
 
 def serial_pk_setup(versione, aumento=100):
-    cursor = connections['versions'].cursor()
+    cursor = get_pg_versions_connection().cursor()
     base_path = get_remote(versione)
     base = os.path.split(base_path)[-1]
     if base:
