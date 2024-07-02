@@ -161,12 +161,12 @@ def cached(func):
         if func.__name__ in cached_props.keys():
             if func.__name__ in timecachedfuncs:
                 if versione.cache_timedelta() > 60:
-                    print ("CACHE-MISS %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
+                    #print ("CACHE-MISS %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
                     cached_props[func.__name__] = func(*args, **kwargs)
                 else:
-                    print ("CACHE-HIT %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
+                    #print ("CACHE-HIT %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
         else:
-            print ("CACHE-STORE %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
+            #print ("CACHE-STORE %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
             cached_props[func.__name__] = func(*args, **kwargs)
         return cached_props[func.__name__]
     return wrapper
@@ -440,7 +440,6 @@ class version(models.Model):
         else:
             if self.riservato and not self.referente:
                 self.riservato = False
-            print ("BASE", self.base)
             if self.base:
                 crea_nuova_versione(self.nome,self.base.nome)
                 #crea progetto
