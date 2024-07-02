@@ -11,13 +11,14 @@ $ git clone git@github.com:enricofer/djakart.git
 $ cd djakart
 ```
 
-2. build the image
+2. build the images
 
 ```
+$ docker build -t enricofer/qgis-server:latest ./build_qgis
 $ docker build --build-context webapp_root=./webapp -t enricofer/djakart:latest ./build_webapp
 ```
 
-3. start the container
+3. start the containers
 
 ```
 $ docker compose up -d
