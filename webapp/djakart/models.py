@@ -163,7 +163,7 @@ def cached(func):
                 if versione.cache_timedelta() > 60:
                     #print ("CACHE-MISS %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
                     cached_props[func.__name__] = func(*args, **kwargs)
-                else:
+                #else:
                     #print ("CACHE-HIT %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
         else:
             #print ("CACHE-STORE %s.%s cache_timedelta %s" % (versione, func.__name__,versione.cache_timedelta() ))
