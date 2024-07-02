@@ -31,8 +31,8 @@ jobs:
     -  name: CHECK HEALTH
        run: timeout 240s sh -c 'until docker ps | grep djakart-webapp_djakart | grep -q healthy; do echo "Waiting for container to be healthy..."; sleep 2; done'
 
-    -  name: LIST CONTAINERS
-       run: docker ps
+    -  name: TEST WEBAPP
+       run: docker compose exec webapp_djakart /usr/bin/python3 manage.py test djakart.tests --no-input
 
     -  name: STOP
        run: docker compose down
