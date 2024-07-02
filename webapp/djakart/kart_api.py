@@ -24,15 +24,6 @@ KART_PGUSER_PWD = os.environ.get("VERSION_VIEWER_PASSWORD", "blabla")
 SRID = os.environ.get("REPO_CRS")
 SRID_CODE = SRID.split(":")[1]
 
-connections = {
-    "versions": psycopg2.connect(
-        database=os.environ.get("VERSION_DB", "blabla"),
-        user=os.environ.get("POSTGRES_USER", "blabla"),
-        password=os.environ.get("POSTGRES_PASSWORD", "blabla"),
-        host=os.environ.get("POSTGRES_SERVER", "blabla"),
-        port=os.environ.get("POSTGRES_PORT", "blabla")
-    )
-}
 
 def get_pg_versions_connection():
     return psycopg2.connect(
@@ -42,6 +33,7 @@ def get_pg_versions_connection():
         host=os.environ.get("POSTGRES_SERVER", "blabla"),
         port=os.environ.get("POSTGRES_PORT", "blabla")
     )
+
 
 class KartException(Exception):
     pass
@@ -101,6 +93,7 @@ def executeCmd(commands, cmd=False, path=None, jsonoutput=False, feedback=None):
         raise KartException(str(e))
         return "error: " + str(e)
 
+
 def crea_fdw(nuova_versione):
 
     crea_fdw_template = """
@@ -139,6 +132,7 @@ GRANT ALL ON TABLE "{schema}".pua TO postgres;
         cursor.execute(crea_fdw_template.format(**common_params, schema=nuova_versione+"_pub"))
         return None
 
+
 def crea_pg_schema(nuova_versione, readonly=False):
 
     if readonly:
@@ -151,10 +145,8 @@ CREATE SCHEMA IF NOT EXISTS "{schema}" AUTHORIZATION "{owner}";
     '''
 
     cursor = get_pg_versions_connection().cursor()
-
     cursor.execute(crea_schema_template.format(schema=nuova_versione, owner=schema_owner))
-    print (crea_schema_template.format(schema=nuova_versione, owner=schema_owner))
-    return True
+
 
 def grant_select_schema(versione, schema_user=KART_PGUSER, schema_admin=KART_SU):
 
@@ -192,16 +184,16 @@ GRANT ALL ON ALL TABLES IN SCHEMA "{schema}" TO "{admin}";
         ))
         return None
 
-def elimina_pg_schema(nuova_versione):
+def elimina_pg_schema(versione):
 
-    schema_owner = KART_SU
+    schema_owner = PG_SU
     canc_schema_template = '''
 DROP SCHEMA IF EXISTS "{schema}" CASCADE   
     '''
 
     cursor = get_pg_versions_connection().cursor()
     try:
-        cursor.execute(canc_schema_template.format(schema=nuova_versione, owner=schema_owner))
+        cursor.execute(canc_schema_template.format(schema=versione, owner=schema_owner))
         return True
     except Exception as e:
         print(e)
@@ -211,7 +203,6 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
     repo_path = os.path.join(settings.KART_REPO,repo_name)
     cmds = ["init", repo_path]
     if readonly_workingcopy:
-        print ("crea_nuovo_repository params", repo_name, readonly_workingcopy)
         crea_pg_schema(readonly_workingcopy, readonly=True)
         cmds.append("--workingcopy-location")
         cmds.append("postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
@@ -224,14 +215,13 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
         ))
     if bare:
         cmds = ["init", "--bare", repo_path]
-    print ("KART CMDS", cmds)
     if not os.path.exists(repo_path):
         cmd = executeCmd(cmds)
         return cmd
 
 def get_config(v,key):
     v_path = os.path.join(settings.KART_REPO,v)
-    res = executeCmd(["config", "-l"])
+    res = executeCmd(["--repo",v_path,"config", "-l"])
     return res
 
 def crea_nuova_versione(nuova_versione,base,tipo="pg"):
@@ -259,14 +249,13 @@ def get_pg_uri(v):
     return "postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
             user=PG_SU,
             password=PG_PWD,
-            host=os.environ.get("HOST_EXTERNAL",'pgserver'),
-            port=os.environ.get("POSTGRES_PORT_EXTERNAL",'pgport'),
+            host=os.environ.get("POSTGRES_SERVER",'pgserver'),
+            port=os.environ.get("POSTGRES_PORT",'pgport'),
             db=settings.DBPREFIX + os.environ.get("VERSION_DB",'pgdb'),
             schema=v
         )
 
 def create_workingcopy(v, uri=None, force=False):
-    print ("CREATE WORKINGCOPY", v, uri)
     v_path = os.path.join(settings.KART_REPO,v)
     cmds = ["--repo",v_path,"create-workingcopy"]
     if force:
@@ -347,10 +336,8 @@ def importa_dataset(versione,ds_path,max_extent=None):
         #EXTRACT EXTENT
         ogrinfo_pass1 = executeCmd(["/usr/bin/ogrinfo", ds_path],cmd=True)
         #^[0-9]+: .*$
-        print("ogrinfo_pass1",ogrinfo_pass1)
         lyrs = []
         for group in re.findall(r"^[0-9]+: .*(?=\()", ogrinfo_pass1, flags=re.MULTILINE):
-            print (group)
             lyrs.append(group)
             clean_group = group.split(":")[-1].strip()
             ogrinfo_pass2 = executeCmd(["/usr/bin/ogrinfo", "-so", ds_path, clean_group],cmd=True)
@@ -358,7 +345,6 @@ def importa_dataset(versione,ds_path,max_extent=None):
             if extent_row:
                 extent_json = extent_row[0].replace("Extent: (","[").replace(") - (",", ").replace(")","]")
                 extent = json.loads(extent_json)
-                print ("group %s %s" % (group, extent))
                 if extent[0] < max_extent[0]:
                     max_extent[0] = extent[0]
                 if extent[1] < max_extent[1]:
@@ -368,7 +354,7 @@ def importa_dataset(versione,ds_path,max_extent=None):
                 if extent[3] > max_extent[3]:
                     max_extent[3] = extent[3]
 
-        print ("MAXEXTENT", max_extent)
+        print ("MAXEXTENT", versione, max_extent)
 
         importa_cmd = executeCmd(["--repo", versione_path, "import", "--replace-existing", "-a", ds_path])
         grant_select_schema(versione)
@@ -457,7 +443,6 @@ def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, format='html'
         if format == 'html':
             #diff_template_location = os.path.join(os.path.dirname(os.path.realpath(__file__)),'diff-view.html')
             response = requests.get("http://localhost:8000/djakart/diff-view/%s/" % versione)
-            print (response.text)
             with open("/tmp/diff-view.html", "w", encoding="utf8") as diff_template:
                 diff_template.write(response.text)
             if hash == 'HEAD':
@@ -600,8 +585,6 @@ def serial_pk_setup(versione, aumento=100):
         #    if not base in schemas:
         #        raise KartException
         sequences = get_sequences(base.replace("_pub",""))
-        print (list_versioned_tables(base))
-        print (base)
         for tab in list_versioned_tables(base):
             if not (tab + "_auto_pk_seq") in sequences:
                 continue

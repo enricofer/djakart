@@ -447,19 +447,12 @@ class version(models.Model):
                 self.progetto = get_qgs_filename(self.nome)
                 self.extent = self.base.extent
             else:
-                print("save1")
                 crea_nuovo_repository(self.nome,bare=False,readonly_workingcopy=self.schema)
-                print("save2")
                 grant_select_schema(self.schema)
-                print("save3")
                 kart_cmd(self.nome,["import",  "-a", os.path.join(os.path.dirname(__file__),"prototipo.gpkg")]) #"--replace-existing",
-                print("save4")
 
-        print("save5")
         self.aggiorna_progetto()
-        print("save6")
         self.salva_cache()
-        print("save7")
         super().save(*args, **kwargs)
 
     def __str__(self):
