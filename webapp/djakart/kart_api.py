@@ -38,6 +38,7 @@ def get_pg_versions_connection():
 class KartException(Exception):
     pass
 
+
 def executeCmd(commands, cmd=False, path=None, jsonoutput=False, feedback=None):
     if not cmd:
         commands.insert(0, KART_EXE)
@@ -184,6 +185,7 @@ GRANT ALL ON ALL TABLES IN SCHEMA "{schema}" TO "{admin}";
         ))
         return None
 
+
 def elimina_pg_schema(versione):
 
     schema_owner = PG_SU
@@ -208,8 +210,8 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
         cmds.append("postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
             user=PG_SU,
             password=PG_PWD,
-            host=os.environ.get("HOST_EXTERNAL",'pgserver'),
-            port=os.environ.get("POSTGRES_PORT_EXTERNAL",'pgport'),
+            host=os.environ.get("POSTGRES_SERVER",'pgserver'),
+            port=os.environ.get("POSTGRES_PORT",'pgport'),
             db=settings.DBPREFIX + os.environ.get("VERSION_DB",'pgdb'),
             schema=readonly_workingcopy
         ))
@@ -219,10 +221,12 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
         cmd = executeCmd(cmds)
         return cmd
 
+
 def get_config(v,key):
     v_path = os.path.join(settings.KART_REPO,v)
-    res = executeCmd(["--repo",v_path,"config", "-l"])
+    res = executeCmd(["--repo",v_path,"config", "--get", 'key'])
     return res
+
 
 def crea_nuova_versione(nuova_versione,base,tipo="pg"):
     nuova_versione_path = os.path.join(settings.KART_REPO,nuova_versione)
@@ -245,6 +249,7 @@ def crea_nuova_versione(nuova_versione,base,tipo="pg"):
         #crea_fdw(nuova_versione)
         serial_pk_setup(nuova_versione)
 
+
 def get_pg_uri(v):
     return "postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
             user=PG_SU,
@@ -254,6 +259,7 @@ def get_pg_uri(v):
             db=settings.DBPREFIX + os.environ.get("VERSION_DB",'pgdb'),
             schema=v
         )
+
 
 def create_workingcopy(v, uri=None, force=False):
     v_path = os.path.join(settings.KART_REPO,v)
@@ -265,6 +271,7 @@ def create_workingcopy(v, uri=None, force=False):
     else:
         cmds.append(uri)
     return executeCmd(cmds)
+
 
 def merge_versione(versione, abort=False, confirm=False):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -290,16 +297,19 @@ def merge_versione(versione, abort=False, confirm=False):
             grant_select_schema(master_versione)
             grant_select_schema(versione)
 
+
 def clone_versione(versione, target):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         clone_cmd = executeCmd(["clone", versione_path, target])
+
 
 def config_user_versione(versione, username, useremail):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         setuser = kart_cmd(versione_path, ["config", "user.name", username])
         setmail = kart_cmd(versione_path, ["config", "user.email", useremail])
+
 
 def aggiorna_riferimenti(versione):
     """
@@ -315,17 +325,20 @@ def aggiorna_riferimenti(versione):
     res.append(kart_cmd(versione+"_pub",fetch_args))
     res.append(kart_cmd(versione+"_pub",reset_arg))
 
+
 def pull_versione(versione):  
     versione_path = os.path.join(settings.KART_REPO,versione)
     #master_path = get_remote(versione)
     if os.path.exists(versione_path):
         push_cmd = executeCmd(["--repo", versione_path, "pull", "origin"])
 
+
 def kart_cmd(versione,args):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         kart_cmd = executeCmd(["--repo", versione_path] + args)
         return kart_cmd
+
 
 def importa_dataset(versione,ds_path,max_extent=None):
     versione_path = os.path.join(settings.KART_REPO, versione)
@@ -361,11 +374,13 @@ def importa_dataset(versione,ds_path,max_extent=None):
         
         return max_extent
 
+
 def commit_versione(versione, messaggio):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         #recover_uncommitted_nulls(versione) #necessario per evitare successive exceptions di kart
         commit_cmd = executeCmd(["--repo", versione_path, "commit", "-m", messaggio])
+
 
 def elimina_versione(canc_versione):
     canc_versione_path = os.path.join(settings.KART_REPO,canc_versione)
@@ -389,12 +404,14 @@ def undo_commit_versione(versione, force=None):
             cmd = executeCmd(["--repo",versione_path,"reset",hash])
         return cmd
     
+
 def restore_versione(versione):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"restore"])
         return cmd
-    
+
+
 def status_versione(versione, as_json=False):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
@@ -408,13 +425,15 @@ def status_versione(versione, as_json=False):
             return str(E)
     else:
         return ""
-    
+
+
 def show_versione(versione, jsonoutput=False):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"show"], jsonoutput=jsonoutput)
         merged_list = cmd.replace("* ","").replace("  ","").split("\n")
         return merged_list
+
 
 def merged_list_versione(versione):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -425,6 +444,7 @@ def merged_list_versione(versione):
         except Exception as E:
             print (E)
             return [str(E)]
+
 
 def log_versione(versione, jsonoutput=False):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -452,7 +472,8 @@ def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, format='html'
         elif format == 'json':
             cmd = executeCmd(["--repo",versione_path,"diff","-o","json", "--output", "-", hash])
         return cmd
-    
+
+
 def conflitti_versione(versione, crs=SRID):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
@@ -469,12 +490,14 @@ def conflitti_versione(versione, crs=SRID):
                 "type": "FeatureCollection",
                 "features": feats
         }
-    
+
+
 def resolve_conflitto(versione, tag_conflitto, risoluzione):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"resolve","--with",risoluzione,tag_conflitto])
         return cmd
+
 
 def get_remote(versione, remote="origin", method='push'):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -484,6 +507,7 @@ def get_remote(versione, remote="origin", method='push'):
             q = "(?<={})([^\n]*)(?=\({}\))".format(remote,method)
             test = re.search(q, cmd)
             return test.group(0).strip() if test.group(0) else None
+
 
 def list_versioned_tables(versione):
     versione_path = os.path.join(settings.KART_REPO,versione.replace("_pub",""))
@@ -496,6 +520,7 @@ def prevent_conflicts_on_ids(versione):
     cursor = get_pg_versions_connection().cursor()
     for table in list_versioned_tables(versione):
         stepoverseq = ""
+
 
 def geo_tables(versione):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -511,6 +536,7 @@ def geo_tables(versione):
                         geom_tables.append(tab)
         return geom_tables
 
+
 def get_metadata(versione,tab):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
@@ -519,6 +545,7 @@ def get_metadata(versione,tab):
             return json.loads(cmd)
         except KartException as E:
             return {"error":True,"result":str(E)}
+
 
 def get_schema(versione,tab,**kwargs):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -533,6 +560,7 @@ def get_schema(versione,tab,**kwargs):
                 else:
                     schema[item["name"]] = item
         return schema
+
 
 def recover_uncommitted_nulls(versione):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -562,17 +590,20 @@ def recover_uncommitted_nulls(versione):
             cursor = get_pg_versions_connection().cursor()
             cursor.execute(sql)
 
+
 def get_schemas():
     sql = """ SELECT nspname FROM pg_catalog.pg_namespace;"""
     cursor = get_pg_versions_connection().cursor()
     cursor.execute(sql)
     return [row[0] for row in cursor.fetchall()]
 
+
 def get_sequences(schema):
     sql = """SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = '{schema}' """.format(schema=schema)
     cursor = get_pg_versions_connection().cursor()
     cursor.execute(sql)
     return [row[0] for row in cursor.fetchall()]
+
 
 def serial_pk_setup(versione, aumento=100):
     cursor = get_pg_versions_connection().cursor()
