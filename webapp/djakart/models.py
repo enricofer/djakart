@@ -49,6 +49,15 @@ BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_extern
 SRID = os.environ.get("REPO_CRS")
 #SRID_CODE = SRID.split(":")[1]
 
+if settings.TEST:
+    QGIS_HOST = "%s:%s" % (os.environ.get("QGIS_SERVER", 'qgis_host_internal'),os.environ.get("QGIS_PORT", 'qgis_port_internal'))
+    PG_HOST = os.environ.get("POSTGRES_SERVER", 'postgres_host_internal')
+    PG_PORT = os.environ.get("POSTGRES_PORT", 'postgres_port_internal')
+else:
+    QGIS_HOST = os.environ.get("QGIS_SERVER_EXTERNAL", 'qgis_host_external')
+    PG_HOST = os.environ.get("HOST_EXTERNAL", 'postgres_host_external')
+    PG_PORT = os.environ.get("POSTGRES_PORT_EXTERNAL", 'postgres_port_external')
+
 def can_modify(u,v):
     return (v.riservato and u == v.referente) or not v.riservato or u.is_superuser
 
@@ -96,8 +105,8 @@ def getQgsProject(versione_obj):
             #if len(vtab) == 1 and table == 'md':
             #    continue
             table_pg_connection = {
-                "host": os.environ.get("HOST_EXTERNAL", 'host_external'),
-                "port": os.environ.get("POSTGRES_PORT_EXTERNAL", 'postgres_port_external'),
+                "host": PG_HOST,
+                "port": PG_PORT,
                 "dbname": os.environ.get("VERSION_DB", 'version_db'),
                 "user": os.environ.get("VERSION_VIEWER", 'version_viewer'),
                 "password": os.environ.get("VERSION_VIEWER_PASSWORD", 'version_viewer_password'),
@@ -128,7 +137,7 @@ CRS={crs}&
 GROUP=VERSION&
 OVERWRITE=true""".format(**wms_params)
         wms_get_qgis_params = wms_get_qgis_params.replace("\n","")
-        host = os.environ.get("QGIS_SERVER_EXTERNAL", '')
+        host = QGIS_HOST
         r = requests.get(host, params=wms_get_qgis_params)
         if r.status_code == 200:
             progetto = r.text 
