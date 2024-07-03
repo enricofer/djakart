@@ -49,15 +49,6 @@ BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_extern
 SRID = os.environ.get("REPO_CRS")
 #SRID_CODE = SRID.split(":")[1]
 
-if settings.TEST:
-    QGIS_HOST = "%s:%s" % (os.environ.get("QGIS_SERVER", 'qgis_host_internal'),os.environ.get("QGIS_PORT", 'qgis_port_internal'))
-    PG_HOST = os.environ.get("POSTGRES_SERVER", 'postgres_host_internal')
-    PG_PORT = os.environ.get("POSTGRES_PORT", 'postgres_port_internal')
-else:
-    QGIS_HOST = os.environ.get("QGIS_SERVER_EXTERNAL", 'qgis_host_external')
-    PG_HOST = os.environ.get("HOST_EXTERNAL", 'postgres_host_external')
-    PG_PORT = os.environ.get("POSTGRES_PORT_EXTERNAL", 'postgres_port_external')
-
 def can_modify(u,v):
     return (v.riservato and u == v.referente) or not v.riservato or u.is_superuser
 
@@ -70,8 +61,18 @@ def writeQgs(versione_obj):
         proqgs.write(progetto)
     return progetto
 
-
 def getQgsProject(versione_obj):
+
+    if settings.TEST:
+        QGIS_HOST = "http://%s/qgisserver/" % (os.environ.get("NGINX_SERVER", 'qgis_host_internal'),)
+        PG_HOST = os.environ.get("POSTGRES_SERVER", 'postgres_host_internal')
+        PG_PORT = os.environ.get("POSTGRES_PORT", 'postgres_port_internal')
+    else:
+        QGIS_HOST = os.environ.get("QGIS_SERVER_EXTERNAL", 'qgis_host_external')
+        PG_HOST = os.environ.get("HOST_EXTERNAL", 'postgres_host_external')
+        PG_PORT = os.environ.get("POSTGRES_PORT_EXTERNAL", 'postgres_port_external')
+
+    print ("ENVIRONMENT", settings.TEST, QGIS_HOST, PG_HOST, PG_PORT)
     versione_name = versione_obj.nome if versione_obj.base else "%s_pub" % versione_obj.nome
     template_obj = versione_obj.template_qgis or versione_obj.origine.template_qgis
     if template_obj:
