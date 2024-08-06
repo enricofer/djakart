@@ -20,7 +20,7 @@ jobs:
        run: docker build --build-context webapp_root=./webapp -t enricofer/djakart:latest ./build_webapp
 
     -  name: QGIS build
-       run: docker build -t enricofer/qgis-server:latest ./build_qgis
+       run: docker build -t qgis-server ./build_qgis
 
     -  name: LIST LOCAL IMAGES
        run: docker image ls
