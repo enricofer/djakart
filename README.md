@@ -41,7 +41,7 @@ $ docker compose exec webapp_djakart /usr/bin/python3 manage.py createsuperuser 
 6. login to [http://localhost:9889/admin](http://localhost:9889/admin)
 
 ```
-login: djakart
+login: djakart-admin
 password: letmein
 ```
 
