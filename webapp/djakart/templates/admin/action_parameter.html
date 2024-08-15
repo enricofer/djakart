@@ -11,10 +11,14 @@
 <script>
 
 function enableCommit(){
-  if (jQuery("#{{ parameter }}").val() == undefined || jQuery("#{{ parameter }}").val().length == 0){
-    jQuery("#commit").hide()
+
+  const messageInput = document.getElementById("{{ parameter }}")
+  const commitButton = document.getElementById("commit")
+
+  if (messageInput.value == undefined || messageInput.value.length == 0){
+    commitButton.style.display = 'none'
   } else {
-    jQuery("#commit").show()
+    commitButton.style.display = 'block'
   }
 }
 
@@ -26,11 +30,11 @@ function enableCommit(){
   <hr>
   <br>
   <form action="" method="GET">{% csrf_token %}
-    <div class="submit-row">
-      <label for="{{ parameter }}">{{ parameter }}: {{ value }}</label>
-      <input style="width:400px;" type="text" id="{{ parameter }}" name="{{ parameter }}" value="" oninput="enableCommit()"/>
-      <input style="display:none" id="commit" type="submit" name="confirmation" value="Commit"/>
-      <input type="submit" name="back" value="No, torna indietro" onclick="window.history.back(); return false;"/>
+    <div class="submit-row" style="display:flex!important;align-items: center;">
+      <label style="margin:2px;font-size:1.2em;align-items: center;" for="{{ parameter }}">{{ parameter }}: {{ value }}</label>
+      <input style="width:400px;margin:2px;" type="text" id="{{ parameter }}" name="{{ parameter }}" value="" oninput="enableCommit()"/>
+      <input style="display:none;margin:2px;" id="commit" type="submit" name="confirmation" value="Commit"/>
+      <input style="margin:2px;" type="submit" name="back" value="No, torna indietro" onclick="window.history.back(); return false;"/>
     </div>
   </form>
 {% endblock %}
