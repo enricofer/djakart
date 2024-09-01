@@ -55,7 +55,7 @@ Now you you can create a new Kart repository adding a new version
 
 ```
 $ docker compose down 
-$ wget https://github.com/enricofer/djakart/releases/download/0.1/test_data01.tar.gz
+$ wget https://github.com/enricofer/djakart/releases/download/0.2/test_data02.tar.gz
 $ sudo tar --same-owner -xvf test_data01.tar.gz data/
 $ docker compose up -d
 ```
