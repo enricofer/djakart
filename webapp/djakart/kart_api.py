@@ -240,7 +240,7 @@ def get_config(v,key):
     return res
 
 
-def crea_nuova_versione(nuova_versione,base,tipo="pg"):
+def crea_nuova_versione(nuova_versione,base,tipo="pg",riserva_id=100):
     nuova_versione_path = os.path.join(settings.KART_REPO,nuova_versione)
     master_path = os.path.join(settings.KART_REPO,base)
     if tipo == 'pg':
@@ -258,7 +258,7 @@ def crea_nuova_versione(nuova_versione,base,tipo="pg"):
         new_wc = create_workingcopy(nuova_versione,uri,force=True)
         grant_select_schema(nuova_versione)
         #crea_fdw(nuova_versione)
-        serial_pk_setup(nuova_versione)
+        serial_pk_setup(nuova_versione, aumento=riserva_id)
 
 
 def get_pg_uri(v):
@@ -603,6 +603,13 @@ def recover_uncommitted_nulls(versione):
                 with conn.cursor() as cursor:
                     cursor.execute(sql)
 
+def get_schema(schema):
+    sql = """ SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname like '{schema}%';""".format(schema=schema)
+    with get_pg_versions_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(sql)
+            return cursor.fetchone()[0]
+
 
 def get_schemas():
     sql = """ SELECT nspname FROM pg_catalog.pg_namespace;"""
@@ -626,23 +633,18 @@ def serial_pk_setup(versione, aumento=100):
             base_path = get_remote(versione)
             base = os.path.split(base_path)[-1]
             if base:
-                schemas = get_schemas()
-                #if not base in schemas:
-                #    base = base + "_pub"
-                #    if not base in schemas:
-                #        raise KartException
-                sequences = get_sequences(base.replace("_pub",""))
+                base_schema = get_schema(base)
+                sequences = get_sequences(base_schema)
                 for tab in list_versioned_tables(base):
-                    if not (tab + "_auto_pk_seq") in sequences:
+                    if not (tab + "_fid_seq") in sequences:
                         continue
-                    #sql = """SELECT MAX(auto_pk) from "{schema}"."{table}";""".format(schema=versione,table=tab)
-                    sql = """SELECT last_value FROM "{schema}"."{table}_auto_pk_seq";""".format(schema=base,table=tab)
+                    sql = """SELECT last_value FROM "{schema}"."{table}_fid_seq";""".format(schema=base_schema, table=tab)
                     cursor.execute(sql)
-                    min_pk = cursor.fetchone()[0]
-                    min_pk += 100
-                    sql = """ALTER SEQUENCE "{schema}"."{table}_auto_pk_seq" RESTART WITH {val}""".format(schema=versione, table=tab, val=min_pk)
+                    base_min_pk = cursor.fetchone()[0]
+                    min_pk = base_min_pk + aumento
+                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=versione, table=tab, val=min_pk)
                     cursor.execute(sql)
-                    sql = """ALTER SEQUENCE "{schema}"."{table}_auto_pk_seq" RESTART WITH {val}""".format(schema=base, table=tab, val=min_pk)
+                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=base_schema, table=tab, val=min_pk)
                     cursor.execute(sql)
 
 

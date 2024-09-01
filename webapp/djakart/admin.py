@@ -247,7 +247,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
+                        'fields': ('nome', ('base','merged','clean',),'reserved_ids','template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
@@ -258,7 +258,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             return (
                 ("intestazione", {
                     'classes': ('grp-collapse grp-open',),
-                    'fields': ('nome', 'base','template_qgis','crs','note','referente','riservato')
+                    'fields': ('nome', 'base','reserved_ids','template_qgis','crs','note','referente','riservato')
                 }),
             )
 
