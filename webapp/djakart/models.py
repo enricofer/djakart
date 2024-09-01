@@ -220,6 +220,7 @@ class version(models.Model):
     template_qgis = models.ForeignKey('modelli', blank=True,null=True, on_delete=models.PROTECT, verbose_name='QGIS template', )
     referente = models.ForeignKey(settings.AUTH_USER_MODEL ,blank=True, null=True, on_delete=models.SET_NULL,limit_choices_to={'groups__name': 'gis'}, verbose_name="ownership", )
     riservato = models.BooleanField(verbose_name="reserved",default=False)
+    reserved_ids = models.IntegerField(default=100)
 
     def salva_cache(self, update=None):
         start = datetime.now()
