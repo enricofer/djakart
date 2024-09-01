@@ -120,70 +120,66 @@ class versioniTests(TestCase):
 
 
     def test_insert(self):
-        connection = get_pg_versions_connection()
-        cursor = connection.cursor()
-        self.clone = version.objects.create(
-            nome=uuid.uuid4().hex[0:4], 
-            crs=self.testver.crs,
-            base=self.testver
-        )
+        with get_pg_versions_connection() as conn:
+            with conn.cursor() as cursor:
+                self.clone = version.objects.create(
+                    nome=uuid.uuid4().hex[0:4], 
+                    crs=self.testver.crs,
+                    base=self.testver
+                )
 
-        sql_add = """
+                sql_add = """
 INSERT INTO "{schema}"."b0101011_Vincolo"(fid, "ARTICOLO", "DETTVINC", geom) VALUES (nextval('"{schema}"."b0101011_Vincolo_fid_seq"'::regclass), '{schema}', 99, 'MultiPolygon (((1722916.68287772010080516 5034227.90152797847986221, 1724565.71380323800258338 5035908.84918108768761158, 1725235.96508264215663075 5033802.34516010340303183, 1722916.68287772010080516 5034227.90152797847986221)))'); 
-""".format(schema=self.clone.schema)
-        print (sql_add)
-        cursor.execute(sql_add)
-        print ("cursor.statusmessage",cursor.statusmessage)
-        connection.commit()
-        self.clone.salva_cache()
-        self.assertTrue(self.clone.cambiamenti_non_registrati, "Cloned version %s" % self.clone.nome)
+                """.format(schema=self.clone.schema)
+                cursor.execute(sql_add)
+                conn.commit()
+                self.clone.salva_cache()
+                self.assertTrue(self.clone.cambiamenti_non_registrati, "Cloned version %s" % self.clone.nome)
 
 
     def test_update(self):
-        connection = get_pg_versions_connection()
+        with get_pg_versions_connection() as conn:
+            with conn.cursor() as cursor:
+                self.clone = version.objects.create(
+                    nome=uuid.uuid4().hex[0:4], 
+                    crs=self.testver.crs,
+                    base=self.testver
+                )
 
-        cursor = connection.cursor()
-        self.clone = version.objects.create(
-            nome=uuid.uuid4().hex[0:4], 
-            crs=self.testver.crs,
-            base=self.testver
-        )
-
-        sql_updt = """
+                sql_updt = """
 UPDATE "{schema}"."b0101011_Vincolo"
 SET "ARTICOLO" = 'TEST' WHERE "N_AREAV"='0015';
 """.format(schema=self.clone.schema)
-        cursor.execute(sql_updt)
-        connection.commit()
-        self.clone.salva_cache()
-        self.assertTrue(self.clone.cambiamenti_non_registrati, "Cloned version %s" % self.clone.nome)
+                cursor.execute(sql_updt)
+                conn.commit()
+                self.clone.salva_cache()
+                self.assertTrue(self.clone.cambiamenti_non_registrati, "Cloned version %s" % self.clone.nome)
 
 
     def test_commit(self):
-        connection = get_pg_versions_connection()
+        with get_pg_versions_connection() as conn:
+            with conn.cursor() as cursor:
+                self.clone = version.objects.create(
+                    nome=uuid.uuid4().hex[0:4], 
+                    crs=self.testver.crs,
+                    base=self.testver
+                )
 
-        cursor = connection.cursor()
-        self.clone = version.objects.create(
-            nome=uuid.uuid4().hex[0:4], 
-            crs=self.testver.crs,
-            base=self.testver
-        )
+                sql_updt = """
+        UPDATE "{schema}"."b0101031_VincDestForestale"
+        SET "ARTICOLO" = 'TEST' WHERE "SHAPE_AREA" > 10000;
+        """.format(schema=self.clone.schema)
+                cursor.execute(sql_updt)
 
-        sql_updt = """
-UPDATE "{schema}"."b0101031_VincDestForestale"
-SET "ARTICOLO" = 'TEST' WHERE "SHAPE_AREA" > 10000;
-""".format(schema=self.clone.schema)
-        cursor.execute(sql_updt)
+                sql_add = """
+        INSERT INTO "{schema}"."b0101011_Vincolo"(fid, "ARTICOLO", "DETTVINC", geom) VALUES (nextval('"{schema}"."b0101011_Vincolo_fid_seq"'::regclass), '{schema}', 99, 'MultiPolygon (((1722916.68287772010080516 5034227.90152797847986221, 1724565.71380323800258338 5035908.84918108768761158, 1725235.96508264215663075 5033802.34516010340303183, 1722916.68287772010080516 5034227.90152797847986221)))'); 
+        """.format(schema=self.clone.schema)
+                print (sql_add)
+                cursor.execute(sql_add)
 
-        sql_add = """
-INSERT INTO "{schema}"."b0101011_Vincolo"(fid, "ARTICOLO", "DETTVINC", geom) VALUES (nextval('"{schema}"."b0101011_Vincolo_fid_seq"'::regclass), '{schema}', 99, 'MultiPolygon (((1722916.68287772010080516 5034227.90152797847986221, 1724565.71380323800258338 5035908.84918108768761158, 1725235.96508264215663075 5033802.34516010340303183, 1722916.68287772010080516 5034227.90152797847986221)))'); 
-""".format(schema=self.clone.schema)
-        print (sql_add)
-        cursor.execute(sql_add)
+                conn.commit()
+                self.clone.salva_cache()
 
-        connection.commit()
-        self.clone.salva_cache()
+                self.clone.commit("TEST COMMIT %s" % self.clone.schema)
 
-        self.clone.commit("TEST COMMIT %s" % self.clone.schema)
-
-        self.assertTrue(self.clone.is_clean_(), "Cloned version %s" % self.clone.nome)
+                self.assertTrue(self.clone.is_clean_(), "Cloned version %s" % self.clone.nome)
