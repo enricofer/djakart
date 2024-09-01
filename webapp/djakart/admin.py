@@ -103,10 +103,10 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         modeladmin.admin_site.each_context(request),
                         parameter = parameter,
                         form =  importForm(estensione = estensione),
-                        title="Importa file"
+                        title="Import file"
                     )
                     return TemplateResponse(request, "admin/action_file.html", context)
-                elif request.POST.get("confirmation") == "importa":
+                elif request.POST.get("confirmation") == "import":
                     kwargs[parameter] = request.GET.get(parameter) 
                     form = importForm(request.POST,request.FILES, estensione = estensione)
                     if form.is_valid() and 'nuovo_dataset' in request.FILES:
@@ -117,7 +117,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         context = {
                             "parameter":  parameter,
                             "form": form,
-                            "title": "Importa file"
+                            "title": "Import file"
                         }
                         return TemplateResponse(request, "admin/action_file.html", context)
 
@@ -148,7 +148,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         "value": "{} ".format(obj.nome)
                     }
                     return TemplateResponse(request, "admin/action_parameter.html", context)
-                elif request.GET.get("confirmation") == "Commit":
+                elif request.GET.get("confirmation") == "Ok":
                     kwargs[parameter] = request.GET.get(parameter) 
 
                 return func(modeladmin, request,obj, **kwargs)
@@ -452,20 +452,20 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
     
     @action(label="Commit", description="Record edits as a commit")
-    @require_parameter("messaggio_di_registrazione")
+    @require_parameter("Commit message")
     def commit(self, request, obj, **kwargs):
         if obj.pk:
             #print (kwargs["messaggio di registrazione"])
             obj.config_user(request.user.username,request.user.email)
-            obj.commit("{}: {}".format(obj.nome, kwargs["messaggio_di_registrazione"]))
+            obj.commit("{}: {} ".format(obj.nome, kwargs["Commit message"]))
             return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
     
     @action(label="New sub-version", description="New version from the existing one")
-    @require_parameter("nome_nuova_versione")
+    @require_parameter("New version name")
     def nuova_versione_da_esistente(self, request, obj, **kwargs):
         if obj.pk:
             nuova_versione = version()
-            nuova_versione.nome = kwargs["nome_nuova_versione"]
+            nuova_versione.nome = kwargs["New version name"]
             nuova_versione.base = obj
             nuova_versione.crs = obj.crs
             nuova_versione.save()
