@@ -8,7 +8,6 @@ from django import forms
 from django.core.validators import FileExtensionValidator
 from django.core.files import File
 from io import StringIO
-from django.core.files.base import ContentFile
 from django.conf import settings
 
 import json
@@ -18,7 +17,6 @@ import re
 import shutil
 import uuid
 from datetime import datetime
-import xml.etree.ElementTree as ET
 
 from .models import version, can_modify, modelli, basemap
 from .kart_api import (
@@ -484,42 +482,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     @require_file("importa_template","qgs")
     def importa_template(self, request, obj, **kwargs):
         if obj.pk:
-            with open(kwargs["importa_template"],"r") as template_file:
-                template_source = template_file.read()
-                template_root = ET.fromstring(template_source)
-                prop_element = template_root.find("properties")
-
-                if prop_element.find("Macros"):
-                    prop_element.remove(prop_element.find("Macros"))
-
-                macro_element = ET.SubElement(prop_element, "Macros")
-                python_element = ET.SubElement(macro_element, "pythonCode")
-                python_element.set("type", "QString")
-                python_element.text = "{{ pythonmacro }}"
-                template_source = ET.tostring(template_root,encoding='unicode')
-
-                print (ET.tostring(prop_element,encoding='unicode'))
-                
-                custom_order_section = re.search('<custom-order enabled="0">((.|\n)*?)<\/custom-order>', template_source) 
-                layer_items = re.finditer("<item>((.|\n)*?)<\/item>", custom_order_section.group()) 
-                layer_ids = [lyr.group(1) for lyr in layer_items]
-
-                template_source = re.sub("(?<=(table\=\&quot\;))(.+)(?=(\&quot;\.))", "{{ versione }}", template_source)
-                template_source = re.sub("(?<=(table\=\"))(.+)(?=(\"\.))", "{{ versione }}", template_source)
-                
-                #template_filepath = os.path.join(settings.MEDIA_ROOT,"tmp",'%s.qgs' % uuid.uuid4().hex)
-                #with open(template_filepath ,"w") as tf:
-                #    tf.write(template_source)
-                
-                qgstmpl = modelli()
-                qgstmpl.doc = ContentFile(template_source,"qgis_template.qgs")#File(StringIO(template_source),"qgis_template")
-                qgstmpl.titolo = "VERSIONI_" + obj.nome
-                qgstmpl.descrizione = json.dumps(layer_ids, indent=2)
-                qgstmpl.abilitato = False
-                qgstmpl.save()
-                obj.template_qgis = qgstmpl
-                obj.save()
-            
+            obj.import_template(kwargs["importa_template"])
             return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
     
     @action(label="Reset not commited edits", description="Reset not commited edits")

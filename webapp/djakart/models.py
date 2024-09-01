@@ -8,6 +8,7 @@ from django.conf import settings
 from datetime import datetime, timedelta
 from django.template import Context, Template
 from django.db.models import JSONField
+from django.core.files.base import ContentFile
 
 from .kart_api import (
     KartException,
@@ -44,6 +45,7 @@ import re
 import requests
 from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
+import xml.etree.ElementTree as ET
 
 BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
 SRID = os.environ.get("REPO_CRS")
@@ -59,6 +61,8 @@ def writeQgs(versione_obj):
     progetto = getQgsProject(versione_obj)
     with open (versione_qgs_path,"w") as proqgs:
         proqgs.write(progetto)
+    versione_obj.progetto = get_qgs_filename(versione_obj.schema)
+    versione_obj.save
     return progetto
 
 def getQgsProject(versione_obj):
@@ -436,11 +440,51 @@ class version(models.Model):
     def kart_tables(self):
         return list_versioned_tables(self.nome)
     
-    def importa(self,dspath):
+    def import_template(self,tmplpath):
+        with open(tmplpath,"r") as template_file:
+            template_source = template_file.read()
+            template_root = ET.fromstring(template_source)
+            prop_element = template_root.find("properties")
+
+            if prop_element.find("Macros"):
+                prop_element.remove(prop_element.find("Macros"))
+
+            macro_element = ET.SubElement(prop_element, "Macros")
+            python_element = ET.SubElement(macro_element, "pythonCode")
+            python_element.set("type", "QString")
+            python_element.text = "{{ pythonmacro }}"
+            template_source = ET.tostring(template_root,encoding='unicode')
+
+            print (ET.tostring(prop_element,encoding='unicode'))
+            
+            custom_order_section = re.search('<custom-order enabled="0">((.|\n)*?)<\/custom-order>', template_source) 
+            layer_items = re.finditer("<item>((.|\n)*?)<\/item>", custom_order_section.group()) 
+            layer_ids = [lyr.group(1) for lyr in layer_items]
+
+            template_source = re.sub("(?<=(table\=\&quot\;))(.+)(?=(\&quot;\.))", "{{ versione }}", template_source)
+            template_source = re.sub("(?<=(table\=\"))(.+)(?=(\"\.))", "{{ versione }}", template_source)
+            
+            #template_filepath = os.path.join(settings.MEDIA_ROOT,"tmp",'%s.qgs' % uuid.uuid4().hex)
+            #with open(template_filepath ,"w") as tf:
+            #    tf.write(template_source)
+            
+            qgstmpl = modelli()
+            qgstmpl.doc = ContentFile(template_source,"qgis_template.qgs")#File(StringIO(template_source),"qgis_template")
+            qgstmpl.titolo = "VERSIONI_" + self.nome
+            qgstmpl.descrizione = json.dumps(layer_ids, indent=2)
+            qgstmpl.abilitato = False
+            qgstmpl.save()
+            self.template_qgis = qgstmpl
+            self.save()
+    
+    def importa(self, dspath):
         ext = importa_dataset(self.nome, dspath, self.extent)
         self.extent = ext
         self.save()
         self.salva_cache()
+        #autotemplate on first ds import
+        if not self.template_qgis:
+            self.import_template("/"+str(self.progetto))
         return ext
 
     def save(self, *args, **kwargs):
