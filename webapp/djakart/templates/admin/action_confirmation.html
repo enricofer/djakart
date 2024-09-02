@@ -5,7 +5,7 @@
   delete-selected-confirmation{% endblock %}
 
 {% block content %}
-  <p>Sei sicuro di voler effettuare l'operazione di {{ action }}?</p>
+  <p>Really want to perform action {{ action }}?</p>
   <ul style="padding: 0">
     {% for object in queryset.all %}
       <li style="list-style: none; float: left; margin: 5px">
@@ -23,8 +23,8 @@
     </fieldset>
     <div class="submit-row">
       <input type="hidden" name="action" value="{{ action }}"/>
-      <input type="submit" name="confirmation" value="Conferma"/>
-      <input type="submit" name="back" value="No, torna indietro" onclick="window.history.back(); return false;"/>
+      <input type="submit" name="confirmation" value="Ok"/>
+      <input type="submit" name="back" value="No, go back" onclick="window.history.back(); return false;"/>
     </div>
   </form>
 {% endblock %}

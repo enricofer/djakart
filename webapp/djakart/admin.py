@@ -8,7 +8,6 @@ from django import forms
 from django.core.validators import FileExtensionValidator
 from django.core.files import File
 from io import StringIO
-from django.core.files.base import ContentFile
 from django.conf import settings
 
 import json
@@ -18,7 +17,6 @@ import re
 import shutil
 import uuid
 from datetime import datetime
-import xml.etree.ElementTree as ET
 
 from .models import version, can_modify, modelli, basemap
 from .kart_api import (
@@ -103,10 +101,10 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         modeladmin.admin_site.each_context(request),
                         parameter = parameter,
                         form =  importForm(estensione = estensione),
-                        title="Importa file"
+                        title="Import file"
                     )
                     return TemplateResponse(request, "admin/action_file.html", context)
-                elif request.POST.get("confirmation") == "importa":
+                elif request.POST.get("confirmation") == "import":
                     kwargs[parameter] = request.GET.get(parameter) 
                     form = importForm(request.POST,request.FILES, estensione = estensione)
                     if form.is_valid() and 'nuovo_dataset' in request.FILES:
@@ -117,7 +115,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         context = {
                             "parameter":  parameter,
                             "form": form,
-                            "title": "Importa file"
+                            "title": "Import file"
                         }
                         return TemplateResponse(request, "admin/action_file.html", context)
 
@@ -148,7 +146,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         "value": "{} ".format(obj.nome)
                     }
                     return TemplateResponse(request, "admin/action_parameter.html", context)
-                elif request.GET.get("confirmation") == "Commit":
+                elif request.GET.get("confirmation") == "Ok":
                     kwargs[parameter] = request.GET.get(parameter) 
 
                 return func(modeladmin, request,obj, **kwargs)
@@ -249,7 +247,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
+                        'fields': ('nome', ('base','merged','clean',),'reserved_ids','template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
@@ -260,7 +258,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             return (
                 ("intestazione", {
                     'classes': ('grp-collapse grp-open',),
-                    'fields': ('nome', 'base','template_qgis','crs','note','referente','riservato')
+                    'fields': ('nome', 'base','reserved_ids','template_qgis','crs','note','referente','riservato')
                 }),
             )
 
@@ -452,20 +450,20 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
     
     @action(label="Commit", description="Record edits as a commit")
-    @require_parameter("messaggio_di_registrazione")
+    @require_parameter("Commit message")
     def commit(self, request, obj, **kwargs):
         if obj.pk:
             #print (kwargs["messaggio di registrazione"])
             obj.config_user(request.user.username,request.user.email)
-            obj.commit("{}: {}".format(obj.nome, kwargs["messaggio_di_registrazione"]))
+            obj.commit("{}: {} ".format(obj.nome, kwargs["Commit message"]))
             return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
     
     @action(label="New sub-version", description="New version from the existing one")
-    @require_parameter("nome_nuova_versione")
+    @require_parameter("New version name")
     def nuova_versione_da_esistente(self, request, obj, **kwargs):
         if obj.pk:
             nuova_versione = version()
-            nuova_versione.nome = kwargs["nome_nuova_versione"]
+            nuova_versione.nome = kwargs["New version name"]
             nuova_versione.base = obj
             nuova_versione.crs = obj.crs
             nuova_versione.save()
@@ -484,42 +482,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     @require_file("importa_template","qgs")
     def importa_template(self, request, obj, **kwargs):
         if obj.pk:
-            with open(kwargs["importa_template"],"r") as template_file:
-                template_source = template_file.read()
-                template_root = ET.fromstring(template_source)
-                prop_element = template_root.find("properties")
-
-                if prop_element.find("Macros"):
-                    prop_element.remove(prop_element.find("Macros"))
-
-                macro_element = ET.SubElement(prop_element, "Macros")
-                python_element = ET.SubElement(macro_element, "pythonCode")
-                python_element.set("type", "QString")
-                python_element.text = "{{ pythonmacro }}"
-                template_source = ET.tostring(template_root,encoding='unicode')
-
-                print (ET.tostring(prop_element,encoding='unicode'))
-                
-                custom_order_section = re.search('<custom-order enabled="0">((.|\n)*?)<\/custom-order>', template_source) 
-                layer_items = re.finditer("<item>((.|\n)*?)<\/item>", custom_order_section.group()) 
-                layer_ids = [lyr.group(1) for lyr in layer_items]
-
-                template_source = re.sub("(?<=(table\=\&quot\;))(.+)(?=(\&quot;\.))", "{{ versione }}", template_source)
-                template_source = re.sub("(?<=(table\=\"))(.+)(?=(\"\.))", "{{ versione }}", template_source)
-                
-                #template_filepath = os.path.join(settings.MEDIA_ROOT,"tmp",'%s.qgs' % uuid.uuid4().hex)
-                #with open(template_filepath ,"w") as tf:
-                #    tf.write(template_source)
-                
-                qgstmpl = modelli()
-                qgstmpl.doc = ContentFile(template_source,"qgis_template.qgs")#File(StringIO(template_source),"qgis_template")
-                qgstmpl.titolo = "VERSIONI_" + obj.nome
-                qgstmpl.descrizione = json.dumps(layer_ids, indent=2)
-                qgstmpl.abilitato = False
-                qgstmpl.save()
-                obj.template_qgis = qgstmpl
-                obj.save()
-            
+            obj.import_template(kwargs["importa_template"])
             return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
     
     @action(label="Reset not commited edits", description="Reset not commited edits")
