@@ -39,6 +39,8 @@ from .kart_api import (
 #SRID = os.environ.get("REPO_CRS")
 #SRID_CODE = SRID.split(":")[1]
 
+SITE_SUBPATH = os.environ.get("SITE_SUBPATH","")
+
 class importForm(forms.Form):
     nuovo_dataset = forms.FileField()
     #nuovo_dataset = forms.FileField()
@@ -90,6 +92,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
         if not "extra_context" in kwargs:
             kwargs["extra_context"] = {}
         kwargs["extra_context"]['crs'] = obj.crs.split(":")[1]
+        kwargs["extra_context"]['site_subpath'] = SITE_SUBPATH
         return super(versioniAdmin, self).change_view(request, object_id, **kwargs) #, extra_context=extra_context
 
     def require_file(parameter,estensione):
@@ -331,10 +334,10 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             log_items = obj.log_json
             li_html = ""
             for item in log_items:
-                li = '<li><a href="#" onclick="generateDiff(\'{versione}\',\'{commit}\',\'{parent}\');event.preventDefault();" target="_blank">{abbrevCommit}</a></br>{message}</br>authored by {authorName} {commitTime}</br></li>' #href="/versioni/diff/{versione}/{commit}/{parent}/"
+                li = '<li><a href="#" onclick="generateDiff(\'{subpath}\',\'{versione}\',\'{commit}\',\'{parent}\');event.preventDefault();" target="_blank">{abbrevCommit}</a></br>{message}</br>authored by {authorName} {commitTime}</br></li>' #href="/versioni/diff/{versione}/{commit}/{parent}/"
                 item["message"] = item["message"].replace("\n", "</br>")
                 item["parent"] = item["parents"][0] if item["parents"] else ""
-                li_html += li.format(versione=obj.nome, **item)
+                li_html += li.format(subpath=SITE_SUBPATH, versione=obj.nome, **item)
             html = "<ul>%s</ul>" % li_html
             return format_html(html)
         else:
@@ -357,9 +360,9 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 elif obj.cambiamenti_non_registrati and not obj.is_faulty:
                     html = '''
 <strong>The current version has not committed edits: 
-    <a href="/djakart/diff/{versione}/HEAD/" target="_blank"> Verify</a>
+    <a href="{site_subpath}/djakart/diff/{versione}/HEAD/" target="_blank"> Verify</a>
 </strong> 
-    '''.format(versione=obj.nome)
+    '''.format(site_subpath=SITE_SUBPATH, versione=obj.nome)
                 else:
                     html = obj.status_()
             return format_html(html)
@@ -378,7 +381,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
     def get_project(self, obj):
         if obj.nome:
-            html= '''<a href="/djakart/qgs/%s/" target="_blank"> Download</a>''' % obj.nome
+            html= '''<a href="%s/djakart/qgs/%s/" target="_blank"> Download</a>''' % (SITE_SUBPATH, obj.nome)
             return format_html(html)
         else:
             return ''
@@ -408,7 +411,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             
             obj.base.config_user(request.user.username, request.user.email)
             obj.merge()
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.base.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.base.pk))
     
     @action(label="Reconcile conflicts", description="Reconcile conflicting edits")
     @resolve_conflicts
@@ -418,7 +421,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 cmd = obj.merge(conferma=True)
             except Exception as E:
                 print("KART EXCEPTION",E)
-        return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+        return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     risolvi_conflitti.short_description = 'reconcile conflicts'
     
     @action(label="Undo merge", description="Refuse conflicted merge")
@@ -426,28 +429,28 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     def annulla_merge(self, request, obj):
         if obj.pk:
             obj.merge(annulla=True)
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     
     @action(label="Apply merge", description="Apply reconciled merge")
     @require_confirmation
     def conferma_merge(self, request, obj):
         if obj.pk:
             obj.merge(conferma=True)
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     
     @action(label="Update", description="Update status cache")
     @require_confirmation
     def aggiorna(self, request, obj):
         if obj.pk:
             obj.aggiorna()
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     
     @action(label="Undo last commit", description="Go back one step in edits log")
     @require_confirmation
     def undo(self, request, obj):
         if obj.pk:
             obj.undo()
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     
     @action(label="Commit", description="Record edits as a commit")
     @require_parameter("Commit message")
@@ -456,7 +459,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             #print (kwargs["messaggio di registrazione"])
             obj.config_user(request.user.username,request.user.email)
             obj.commit("{}: {} ".format(obj.nome, kwargs["Commit message"]))
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     
     @action(label="New sub-version", description="New version from the existing one")
     @require_parameter("New version name")
@@ -467,30 +470,28 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             nuova_versione.base = obj
             nuova_versione.crs = obj.crs
             nuova_versione.save()
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % nuova_versione.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, nuova_versione.pk))
             
     @action(label="Import geopackage", description="Import all tables from geopackage and commit to repository")
     @require_file("importa_geopackage","gpkg")
     def importa_geopackage(self, request, obj, **kwargs):
         if obj.pk:
             obj.importa(kwargs["importa_geopackage"])
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
-            
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
         
     @action(label="Import QGIS template", description="Import a QGS project as base template for repository (allows RW on tables)")
     @require_file("importa_template","qgs")
     def importa_template(self, request, obj, **kwargs):
         if obj.pk:
             obj.import_template(kwargs["importa_template"])
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     
     @action(label="Reset not commited edits", description="Reset not commited edits")
     @require_confirmation
     def restore(self, request, obj):
         if obj.pk:
             obj.restore()
-            return HttpResponseRedirect("/admin/djakart/version/%s/" % obj.pk)
+            return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
 
     def rigen_local_gpkg(self,obj):
         if not obj.base:

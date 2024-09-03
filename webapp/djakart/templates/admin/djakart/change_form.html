@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol3-layerswitcher/master/src/ol3-layerswitcher.css" />
     <link rel="stylesheet" href="https://cdn.rawgit.com/Viglino/ol-ext/master/dist/ol-ext.min.css" />
     <!-- URB PD -->
-    <link rel="stylesheet" href="/static/djakart/versioni_finestramappa.css?id=123236600233" />
+    <link rel="stylesheet" href="{{ site_subpath }}/static/djakart/versioni_finestramappa.css?id=123236600233" />
     <script
     src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
     integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8="
@@ -17,13 +17,13 @@
     <!-- DJAKART -->
     <script type="text/javascript" src="https://epsg.io/{{ crs }}.js"></script>
     <script type="text/javascript">var CRSID = "EPSG:{{ crs }}"; var CRSCODE = {{ crs }};</script>
-    <script type="text/javascript" src="/djakart/basemaps/foreground/"></script>
-    <script type="text/javascript" src="/djakart/basemaps/background/"></script>
-    <script type="text/javascript" src="/djakart/vlist/{{ object_id }}/"></script>
-    <script type="text/javascript" src="/static/djakart/versioni_finestramappa.js?id=55006603039"></script>
-    <script type="text/javascript" src="/static/djakart/generate_diff.js"></script>
-    <script type="text/javascript" src="/static/admin/js/calendar.js"></script>
-    <script type="text/javascript" src="/static/admin/js/admin/DateTimeShortcuts.js"></script>
+    <script type="text/javascript" src="{{ site_subpath }}/djakart/basemaps/foreground/"></script>
+    <script type="text/javascript" src="{{ site_subpath }}/djakart/basemaps/background/"></script>
+    <script type="text/javascript" src="{{ site_subpath }}/djakart/vlist/{{ object_id }}/"></script>
+    <script type="text/javascript" src="{{ site_subpath }}/static/djakart/versioni_finestramappa.js?id=55006603039"></script>
+    <script type="text/javascript" src="{{ site_subpath }}/static/djakart/generate_diff.js?id=9331006603"></script>
+    <script type="text/javascript" src="{{ site_subpath }}/static/admin/js/calendar.js"></script>
+    <script type="text/javascript" src="{{ site_subpath }}/static/admin/js/admin/DateTimeShortcuts.js"></script>
     <script type="text/javascript">
 
     </script>

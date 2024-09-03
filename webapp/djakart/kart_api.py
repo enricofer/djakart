@@ -1,5 +1,6 @@
 #defaults
 from django.conf import settings
+from django.template.loader import render_to_string
 #from django.db import connections
 
 import os
@@ -20,6 +21,8 @@ KART_SU_PWD = os.environ.get("VERSION_ADMIN_PASSWORD", "blabla")
 
 KART_PGUSER = os.environ.get("VERSION_VIEWER", "blabla")
 KART_PGUSER_PWD = os.environ.get("VERSION_VIEWER_PASSWORD", "blabla")
+
+SITE_SUBPATH = os.environ.get("SITE_SUBPATH", "")
 
 SRID = os.environ.get("REPO_CRS")
 SRID_CODE = SRID.split(":")[1]
@@ -224,7 +227,7 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
             password=PG_PWD,
             host=os.environ.get("POSTGRES_SERVER",'pgserver'),
             port=os.environ.get("POSTGRES_PORT",'pgport'),
-            db=settings.DBPREFIX + os.environ.get("VERSION_DB",'pgdb'),
+            db=os.environ.get("VERSION_DB",'pgdb'),
             schema=readonly_workingcopy
         ))
     if bare:
@@ -267,7 +270,7 @@ def get_pg_uri(v):
             password=PG_PWD,
             host=os.environ.get("POSTGRES_SERVER",'pgserver'),
             port=os.environ.get("POSTGRES_PORT",'pgport'),
-            db=settings.DBPREFIX + os.environ.get("VERSION_DB",'pgdb'),
+            db=os.environ.get("VERSION_DB",'pgdb'),
             schema=v
         )
 
@@ -462,9 +465,16 @@ def log_versione(versione, jsonoutput=False):
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"log"], jsonoutput=jsonoutput)
         return cmd
+
+
+def _diff_view(crs,extent):
+    return  render_to_string(
+        'diff-view.html',
+        {'crs': crs,'crscode': crs.split(":")[-1], 'extent': extent, 'site_subpath': SITE_SUBPATH}
+    )
     
 
-def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, format='html'):
+def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, extent=[0,0,0,0], format='html'):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         jlog = log_versione(versione,jsonoutput=True)
@@ -472,10 +482,8 @@ def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, format='html'
         if commit and not prev:
             prev = commit[0]["parents"][0] 
         if format == 'html':
-            #diff_template_location = os.path.join(os.path.dirname(os.path.realpath(__file__)),'diff-view.html')
-            response = requests.get("http://localhost:8000/djakart/diff-view/%s/" % versione)
             with open("/tmp/diff-view.html", "w", encoding="utf8") as diff_template:
-                diff_template.write(response.text)
+                diff_template.write(_diff_view(crs, extent))
             if hash == 'HEAD':
                 cmd = executeCmd(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", crs, "--output", "-", hash])
             else:
