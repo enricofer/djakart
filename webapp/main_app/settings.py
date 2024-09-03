@@ -104,7 +104,6 @@ DATABASES['default'] =  {
     'HOST' : os.environ.get("POSTGRES_SERVER", ""),
     'PORT' : os.environ.get("POSTGRES_PORT", ""),
 }
-DBPREFIX=""
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
