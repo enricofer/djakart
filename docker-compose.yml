@@ -39,7 +39,7 @@ services:
       - ./initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
 
   qgisserver_djakart:
-    image: qgis-server
+    image: enricofer/qgis-server:latest
     env_file:
       - .env
     volumes:
