@@ -239,7 +239,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
+                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
@@ -274,7 +274,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 if can_modify(request.user,obj.base):
                     if obj.is_merged_():
                         if can_modify(request.user,obj):
-                            pre = ['importa_geopackage',]
+                            pre = ['importa_template','importa_geopackage',]
                         else:
                             pre = []
                     else:

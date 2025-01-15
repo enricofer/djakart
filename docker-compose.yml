@@ -17,8 +17,8 @@ services:
     depends_on:
       - postgis_djakart
     volumes:
-      - ./data/media:/media
-      - ./data/static:/app/static
+      - ./dati/media:/media
+      - ./webapp/static:/app/static
       - ./webapp:/app
       - ./data/kart_versions:/kart_versions
     healthcheck:
@@ -52,7 +52,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data/static:/static
+      - ./webapp/static:/static
+      - ./dati/media:/media
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     ports:
       - 9889:80
