@@ -44,11 +44,11 @@ from djakart.models import (
 
 def get_pg_uri(schema):
     return '''PG:"dbname='{dbname}' host='{host}' port='{port}' user='{user}' password='{pwd}' active_schema='{schema}'"'''.format(
-            dbname=settings.DBPREFIX + os.environ.get("VERSION_DB", ""),
-            host=os.environ.get("HOST_EXTERNAL", ""),
-            port=os.environ.get("POSTGRES_PORT_EXTERNAL", ""),
-            user=os.environ.get("POSTGRES_USER", ""),
-            pwd=os.environ.get("POSTGRES_PASSWORD", ""),
+            dbname=settings.DBPREFIX + settings.DJAKART_VERSION_DB,
+            host=settings.DJAKART_HOST_EXTERNAL,
+            port=settings.DJAKART_POSTGRES_PORT_EXTERNAL
+            user=settings.DJAKART_POSTGRES_USER
+            pwd=settings.DJAKART_POSTGRES_PASSWORD,
             schema=schema
         )
 

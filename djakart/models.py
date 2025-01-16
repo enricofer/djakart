@@ -47,8 +47,8 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
 import xml.etree.ElementTree as ET
 
-BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
-SRID = os.environ.get("REPO_CRS")
+BASE_MAPPING_SERVICE = settings.DJAKART_QGIS_SERVER_EXTERNAL
+SRID = settings.DJAKART_SRID
 
 try:
     TEST = settings.TEST
@@ -72,13 +72,14 @@ def writeQgs(versione_obj):
 def getQgsProject(versione_obj):
 
     if TEST:
-        QGIS_HOST = "http://%s/qgisserver/" % (os.environ.get("NGINX_SERVER", 'qgis_host_internal'),)
-        PG_HOST = os.environ.get("POSTGRES_SERVER", 'postgres_host_internal')
-        PG_PORT = os.environ.get("POSTGRES_PORT", 'postgres_port_internal')
+        QGIS_HOST = "http://%s/qgisserver/" % settings.DJAKART_HTTP_SERVER
+        PG_HOST = settings.DJAKART_POSTGRES_SERVER 
+        PG_PORT = settings.DJAKART_POSTGRES_PORT
+
     else:
-        QGIS_HOST = os.environ.get("QGIS_SERVER_EXTERNAL", 'qgis_host_external')
-        PG_HOST = os.environ.get("HOST_EXTERNAL", 'postgres_host_external')
-        PG_PORT = os.environ.get("POSTGRES_PORT_EXTERNAL", 'postgres_port_external')
+        QGIS_HOST = settings.DJAKART_QGIS_SERVER_EXTERNAL
+        PG_HOST = settings.DJAKART_HOST_EXTERNAL
+        PG_PORT = settings.DJAKART_POSTGRES_PORT_EXTERNAL
 
     versione_name = versione_obj.nome if versione_obj.base else "%s_pub" % versione_obj.nome
     template_obj = versione_obj.template_qgis or versione_obj.origine.template_qgis
@@ -115,9 +116,9 @@ def getQgsProject(versione_obj):
             table_pg_connection = {
                 "host": PG_HOST,
                 "port": PG_PORT,
-                "dbname": os.environ.get("VERSION_DB", 'version_db'),
-                "user": os.environ.get("VERSION_VIEWER", 'version_viewer'),
-                "password": os.environ.get("VERSION_VIEWER_PASSWORD", 'version_viewer_password'),
+                "dbname": settings.DJAKART_VERSION_DB,
+                "user": settings.DJAKART_VERSION_VIEWER,
+                "password": settings.DJAKART_VERSION_VIEWER_PASSWORD,
                 "schema": versione_name,
                 "table": table,
                 "key_field": "auto_pk",

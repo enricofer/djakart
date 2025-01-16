@@ -36,10 +36,8 @@ from .kart_api import (
     pull_versione,
     kart_cmd
 )
-#SRID = os.environ.get("REPO_CRS")
-#SRID_CODE = SRID.split(":")[1]
 
-SITE_SUBPATH = os.environ.get("SITE_SUBPATH","")
+SITE_SUBPATH = settings.DJAKART_SITE_SUBPATH
 
 class importForm(forms.Form):
     nuovo_dataset = forms.FileField()
@@ -184,7 +182,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         "conflicts":  json.dumps(conflicts), 
                         "crs": obj.crs,
                         "crscode": obj.crs.split(":")[-1],
-                        "root_wms":os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external") + '?MAP=/kart_versions/', 
+                        "root_wms":settings.DJAKART_QGIS_SERVER_EXTERNAL + '?MAP=/kart_versions/', 
                         "base_name":obj.nome,
                         "version_name":version_name,
                         "version_id": obj.pk,

@@ -1,0 +1,25 @@
+include LICENSE
+include README.md
+recursive-include djakart/static *
+recursive-include djakart/templates *
+recursive-include djakart/migrations *
+recursive-include djakart/static *
+recursive-include doc *
+recursive-exclude build_qgis *
+recursive-exclude build_webapp *
+recursive-exclude data *
+recursive-exclude djakart_admin *
+recursive-exclude djakart_admin *
+recursive-exclude main_app *
+include djakart/admin.py
+include djakart/aggiorna_privilegi_pg.py
+include djakart/apps.py
+include djakart/importa_template.py
+include djakart/kart_api.py
+include djakart/__init__.py
+include djakart/prototipo.gpkg
+include djakart/QGS_project_macro.py
+include djakart/models.py
+include djakart/tests.py
+include djakart/urls.py
+include djakart/views.py

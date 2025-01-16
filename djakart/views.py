@@ -32,7 +32,7 @@ from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
 
 VERSIONI_USER_GROUP = "gis"
-SRID = os.environ.get("REPO_CRS")
+SRID = settings.DJAKART_SRID
 SRID_CODE = SRID.split(":")[1]
 
 def is_member(user):

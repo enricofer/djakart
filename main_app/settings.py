@@ -142,7 +142,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR,'static')
+STATIC_ROOT = os.path.join(BASE_DIR,'data','static')
 #STATICFILES_DIRS = [ BASE_DIR / "static","static/", ]
 
 #CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:8000",]
@@ -153,11 +153,33 @@ CSRF_TRUSTED_ORIGINS = [
     ]
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = MEDIA_URL
+MEDIA_ROOT = os.path.join(BASE_DIR,'data','media')
 
-KART_REPO = '/kart_versions/'
+KART_REPO = os.path.join(BASE_DIR,'data','kart_versions')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+#djakart specific settings
+DJAKART_SITE_SUBPATH = os.environ.get("SITE_SUBPATH","")
+DJAKART_QGIS_SERVER_INTERNAL = os.environ.get("QGIS_SERVER","qgis_server_internal")
+DJAKART_QGIS_SERVER_EXTERNAL = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
+DJAKART_KART_EXE = "/opt/kart/kart_cli"
+DJAKART_POSTGRES_USER = os.environ.get("POSTGRES_USER", "")
+DJAKART_POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "")
+
+DJAKART_POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "postgres port internal")
+DJAKART_POSTGRES_SERVER = os.environ.get("POSTGRES_SERVER", "postgres host internal")
+DJAKART_VERSION_DB = os.environ.get("VERSION_DB", "version_db")
+
+DJAKART_VERSION_ADMIN = os.environ.get("VERSION_ADMIN", "")
+DJAKART_VERSION_ADMIN_PASSWORD = os.environ.get("VERSION_ADMIN_PASSWORD", "")
+DJAKART_VERSION_VIEWER = os.environ.get("VERSION_VIEWER", "")
+DJAKART_VERSION_VIEWER_PASSWORD = os.environ.get("VERSION_VIEWER_PASSWORD", "")
+DJAKART_SRID = os.environ.get("REPO_CRS","")
+
+DJAKART_HTTP_SERVER = os.environ.get("NGINX_SERVER", 'http_internal')
+DJAKART_HOST_EXTERNAL = os.environ.get("HOST_EXTERNAL", 'qgis_host_internal')
+DJAKART_POSTGRES_PORT_EXTERNAL = os.environ.get("POSTGRES_PORT_EXTERNAL", 'qgis_host_internal')

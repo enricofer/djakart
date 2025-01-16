@@ -11,33 +11,35 @@ import requests
 import sys
 import psycopg2
 
-KART_EXE = "/opt/kart/kart_cli"
+KART_EXE = settings.DJAKART_KART_EXE
 
-PG_SU = os.environ.get("POSTGRES_USER", "blabla")
-PG_PWD = os.environ.get("POSTGRES_PASSWORD", "blabla")
+PG_HOST = settings.DJAKART_POSTGRES_SERVER
+PG_PORT = settings.DJAKART_POSTGRES_PORT
+PG_DB = settings.DJAKART_VERSION_DB
+PG_SU = settings.DJAKART_POSTGRES_USER
+PG_PWD = settings.DJAKART_POSTGRES_PASSWORD
 
-KART_SU = os.environ.get("VERSION_ADMIN", "blabla")
-KART_SU_PWD = os.environ.get("VERSION_ADMIN_PASSWORD", "blabla")
+KART_SU = settings.DJAKART_VERSION_ADMIN
+KART_SU_PWD = settings.DJAKART_VERSION_ADMIN_PASSWORD
 
-KART_PGUSER = os.environ.get("VERSION_VIEWER", "blabla")
-KART_PGUSER_PWD = os.environ.get("VERSION_VIEWER_PASSWORD", "blabla")
+KART_PGUSER = settings.DJAKART_VERSION_VIEWER
+KART_PGUSER_PWD = settings.DJAKART_VERSION_VIEWER_PASSWORD
 
-SITE_SUBPATH = os.environ.get("SITE_SUBPATH", "")
+SITE_SUBPATH = settings.DJAKART_SITE_SUBPATH
 
-SRID = os.environ.get("REPO_CRS")
+SRID = settings.DJAKART_SRID
 SRID_CODE = SRID.split(":")[1]
 
 
 def get_pg_versions_connection():
     connection = psycopg2.connect(
-        database=os.environ.get("VERSION_DB", "blabla"),
-        user=os.environ.get("POSTGRES_USER", "blabla"),
-        password=os.environ.get("POSTGRES_PASSWORD", "blabla"),
-        host=os.environ.get("POSTGRES_SERVER", "blabla"),
-        port=os.environ.get("POSTGRES_PORT", "blabla")
+        database = settings.DJAKART_VERSION_DB,
+        user = PG_SU,
+        password = PG_PWD,
+        host = settings.DJAKART_POSTGRES_SERVER,
+        port = settings.DJAKART_POSTGRES_PORT,
     )
     return connection
-
 
 class KartException(Exception):
     pass
@@ -225,9 +227,9 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
         cmds.append("postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
             user=PG_SU,
             password=PG_PWD,
-            host=os.environ.get("POSTGRES_SERVER",'pgserver'),
-            port=os.environ.get("POSTGRES_PORT",'pgport'),
-            db=os.environ.get("VERSION_DB",'pgdb'),
+            host=PG_HOST,
+            port=PG_PORT,
+            db=PG_DB,
             schema=readonly_workingcopy
         ))
     if bare:
@@ -268,9 +270,9 @@ def get_pg_uri(v):
     return "postgresql://{user}:{password}@{host}:{port}/{db}/{schema}".format(
             user=PG_SU,
             password=PG_PWD,
-            host=os.environ.get("POSTGRES_SERVER",'pgserver'),
-            port=os.environ.get("POSTGRES_PORT",'pgport'),
-            db=os.environ.get("VERSION_DB",'pgdb'),
+            host=PG_HOST,
+            port=PG_PORT,
+            db=PG_DB,
             schema=v
         )
 

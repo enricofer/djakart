@@ -1,0 +1,12 @@
+django>=4.0
+asgiref
+certifi
+charset-normalizer
+django-object-actions
+GDAL>=3.4.3
+idna
+numpy
+psycopg2-binary
+requests
+sqlparse
+urllib3

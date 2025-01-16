@@ -17,10 +17,7 @@ services:
     depends_on:
       - postgis_djakart
     volumes:
-      - ./data/media:/media
-      - ./data/static:/app/static
-      - ./webapp:/app
-      - ./data/kart_versions:/kart_versions
+      - ./:/app
     healthcheck:
       test: wget -qO- http://localhost:8000/healthcheck/ || exit 1
       start_period: 30s
@@ -42,9 +39,11 @@ services:
     image: enricofer/qgis-server:latest
     env_file:
       - .env
+    ports:
+      - 5555:5555
     volumes:
       - ./data/kart_versions:/kart_versions
-      - ./webapp/djakart/otf_qgisserver_plugin:/plugins/otf_qgisserver_plugin
+      - ./djakart/otf_qgisserver_plugin:/plugins/otf_qgisserver_plugin
       - ./000-default.conf:/etc/apache2/sites-enabled/000-default.conf
 
   nginx_djakart:
