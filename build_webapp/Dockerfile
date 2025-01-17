@@ -24,7 +24,7 @@ RUN dpkg -i kart_0.15.1_amd64.deb
 RUN kart config --global user.email "you@example.com"
 RUN kart config --global user.name "Your Name"
 
-COPY /requirements.txt /requirements.txt
+COPY --from=webapp_root requirements.txt .
 
 RUN python3 -m pip config --global set global.break-system-packages true
 
