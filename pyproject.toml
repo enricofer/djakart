@@ -10,7 +10,7 @@ namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project]
 name = "djakart"
-version = "0.1"
+version = "0.3"
 dependencies = [
     "django>=4.0",
     "asgiref",

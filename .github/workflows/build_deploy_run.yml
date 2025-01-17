@@ -6,9 +6,11 @@ on:
   push:
     branches:
       - master
+      - packaging
   pull_request:
     branches:
       - master
+      - packaging
 
 jobs: 
   build_and_run:  
@@ -21,6 +23,9 @@ jobs:
 
     -  name: QGIS build
        run: docker build -t enricofer/qgis-server:latest ./build_qgis
+
+    -  name: NGINX build
+       run: docker build -t enricofer/nginx:latest ./build_nginx
 
     -  name: LIST LOCAL IMAGES
        run: docker image ls

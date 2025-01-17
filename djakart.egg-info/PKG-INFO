@@ -1,6 +1,6 @@
 Metadata-Version: 2.2
 Name: djakart
-Version: 0.1
+Version: 0.3
 Summary: A django wrapper to kart geospatial versioning tool 
 Author-email: Enrico Ferreguti <enricofer@gmail.com>
 Project-URL: Homepage, https://github.com/enricofer/djakart
