@@ -155,18 +155,19 @@ CSRF_TRUSTED_ORIGINS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR,'data','media')
 
-KART_REPO = os.path.join(BASE_DIR,'data','kart_versions')
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 #djakart specific settings
+DJAKART_REPO = os.path.join(BASE_DIR,'data','kart_versions')
+DJAKART_KART_EXE = "/opt/kart/kart_cli"
+
 DJAKART_SITE_SUBPATH = os.environ.get("SITE_SUBPATH","")
 DJAKART_QGIS_SERVER_INTERNAL = os.environ.get("QGIS_SERVER","qgis_server_internal")
+DJAKART_QGIS_SERVER_PORT_INTERNAL = os.environ.get("QGIS_SERVER_PORT","qgis_server_port_internal")
 DJAKART_QGIS_SERVER_EXTERNAL = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
-DJAKART_KART_EXE = "/opt/kart/kart_cli"
 DJAKART_POSTGRES_USER = os.environ.get("POSTGRES_USER", "")
 DJAKART_POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "")
 

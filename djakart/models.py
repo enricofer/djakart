@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from django.template import Context, Template
 from django.db.models import JSONField
 from django.core.files.base import ContentFile
+from django.core.files.storage import FileSystemStorage
 
 from .kart_api import (
     KartException,
@@ -60,12 +61,12 @@ def can_modify(u,v):
 
 def writeQgs(versione_obj):
     versione_name = versione_obj.nome if versione_obj.base else "%s_pub" % versione_obj.nome
-    versione_qgs_path = os.path.join("/kart_versions", versione_name+'.qgs')
+    versione_qgs_path = os.path.join(settings.DJAKART_REPO, versione_name+'.qgs')
     grant_select_schema(versione_name)
     progetto = getQgsProject(versione_obj)
     with open (versione_qgs_path,"w") as proqgs:
         proqgs.write(progetto)
-    versione_obj.progetto = get_qgs_filename(versione_obj.schema)
+    versione_obj.progetto = versione_obj.publishing_path
     versione_obj.save
     return progetto
 
@@ -147,6 +148,7 @@ GROUP=VERSION&
 OVERWRITE=true""".format(**wms_params)
         wms_get_qgis_params = wms_get_qgis_params.replace("\n","")
         host = QGIS_HOST
+        #host = "http://%s:%s" % (settings.DJAKART_QGIS_SERVER_INTERNAL, settings.DJAKART_QGIS_SERVER_PORT_INTERNAL)
         r = requests.get(host, params=wms_get_qgis_params)
         if r.status_code == 200:
             progetto = r.text 
@@ -162,10 +164,6 @@ def clean_ids(qgs_string, modello):
         qgs_string = qgs_string.replace(layerid, new_layerid)
         #print (layerid, new_layerid)
     return qgs_string
-
-def get_qgs_filename(project_name):
-    path = "kart_versions/%s.qgs" % project_name
-    return path
 
 def cached(func):
     timecachedfuncs = ('status','has_conflicts','is_merging',)
@@ -214,11 +212,13 @@ class version(models.Model):
         verbose_name_plural = "Versions"
         verbose_name = "Version"
 
+    project_storage = FileSystemStorage(location=settings.DJAKART_REPO, base_url='/kart_versions')
+
     nome = models.CharField(verbose_name="Name", max_length=20)
     base = models.ForeignKey('version',blank=True,null=True, on_delete=models.PROTECT)
     versione_confronto = models.ForeignKey('version', related_name='confronto',blank=True,null=True, on_delete=models.PROTECT,verbose_name="compare version")
     note = models.TextField(blank=True)
-    progetto = models.FileField(verbose_name="QGIS project", blank=True)
+    progetto = models.FileField(verbose_name="QGIS project", blank=True, storage=project_storage)
     extent = JSONField(default=[99999999,99999999,-999999,-9999999])
     crs = models.CharField(verbose_name="Coordinate system epsg code", default=SRID, max_length=20)
     template_qgis = models.ForeignKey('modelli', blank=True,null=True, on_delete=models.PROTECT, verbose_name='QGIS template', )
@@ -228,8 +228,8 @@ class version(models.Model):
 
     def salva_cache(self, update=None):
         start = datetime.now()
-        if os.path.exists(os.path.join('/kart_versions',self.nome+".json")):
-            os.remove(os.path.join('/kart_versions',self.nome+".json"))
+        if os.path.exists(os.path.join(settings.DJAKART_REPO,self.nome+".json")):
+            os.remove(os.path.join(settings.DJAKART_REPO,self.nome+".json"))
         if update:
             cache_dict=update
         else:
@@ -250,14 +250,14 @@ class version(models.Model):
                 "mapping_service_url": self.mapping_service_url,
                 "delay": str(datetime.now()-start)
             }
-        with open (os.path.join('/kart_versions',self.nome+".json"),"w") as cf:
+        with open (os.path.join(settings.DJAKART_REPO,self.nome+".json"),"w") as cf:
             json.dump(cache_dict, cf) 
         return cache_dict
 
     def cache_timedelta(self):
-        if os.path.exists(os.path.join('/kart_versions',self.nome+".json")):
+        if os.path.exists(os.path.join(settings.DJAKART_REPO,self.nome+".json")):
             now = datetime.now()
-            filetime =  datetime.fromtimestamp(os.path.getctime(os.path.join('/kart_versions',self.nome+".json")))
+            filetime =  datetime.fromtimestamp(os.path.getctime(os.path.join(settings.DJAKART_REPO,self.nome+".json")))
             filedelta = now - filetime
             return filedelta.total_seconds()
         else:
@@ -265,7 +265,7 @@ class version(models.Model):
     
     def load_cache(self):
         try:
-            with open (os.path.join('/kart_versions',self.nome+".json"),"r") as cf:
+            with open (os.path.join(settings.DJAKART_REPO,self.nome+".json"),"r") as cf:
                 return json.load(cf) 
         except Exception as E:
             print (E)
@@ -276,11 +276,6 @@ class version(models.Model):
         return BASE_MAPPING_SERVICE + "?MAP=%s" % self.publishing_path
     
     @property
-    def project_path(self):
-        if self.base:
-            return self.progetto.path
-        
-    @property
     def schema(self):
         if self.base:
             return self.nome
@@ -289,11 +284,7 @@ class version(models.Model):
     
     @property
     def publishing_path(self):
-        if not self.base:
-            path = os.path.join('/kart_versions',self.nome+"_pub.qgs")
-        else:
-            path = self.progetto.path.replace(settings.MEDIA_ROOT,"/")
-        return path
+        return os.path.join(settings.DJAKART_REPO,self.schema+".qgs")
 
     @property
     def origine(self):
@@ -489,7 +480,7 @@ class version(models.Model):
         self.salva_cache()
         #autotemplate on first ds import
         if not self.template_qgis:
-            self.import_template("/"+str(self.progetto))
+            self.import_template(self.progetto.path)
         return ext
 
     def save(self, *args, **kwargs):
@@ -502,7 +493,7 @@ class version(models.Model):
             if self.base:
                 self.reserved_ids = self.base.reserved_ids
                 crea_nuova_versione(self.nome,self.base.nome,riserva_id=self.reserved_ids)
-                self.progetto = get_qgs_filename(self.nome)
+                self.progetto = self.publishing_path
                 self.extent = self.base.extent
             else:
                 crea_nuovo_repository(self.nome,bare=False,readonly_workingcopy=self.schema)
@@ -520,7 +511,7 @@ class version(models.Model):
 @receiver(post_delete, sender=version)
 def cancella_versioni(sender, instance, using, **kwargs):
     versione_path = instance.publishing_path
-    json_path = os.path.join('/kart_versions',instance.nome+'.json')
+    json_path = os.path.join(settings.DJAKART_REPO,instance.nome+'.json')
     #shutil.rmtree(os.path.dirname(instance.progetto.path), ignore_errors=True)
     if not instance.base:
         nome = instance.nome

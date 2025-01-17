@@ -42,17 +42,17 @@ services:
     ports:
       - 5555:5555
     volumes:
-      - ./data/kart_versions:/kart_versions
+      - ./data/kart_versions:/app/data/kart_versions
       - ./djakart/otf_qgisserver_plugin:/plugins/otf_qgisserver_plugin
       - ./000-default.conf:/etc/apache2/sites-enabled/000-default.conf
 
   nginx_djakart:
-    image: nginx:latest
+    image: enricofer/nginx:latest
     env_file:
       - .env
     volumes:
       - ./data/static:/static
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx_template.conf:/etc/nginx/conf.d/default.conf.template
     ports:
       - 9889:80
     depends_on:

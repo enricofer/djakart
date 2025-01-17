@@ -219,7 +219,7 @@ DROP SCHEMA IF EXISTS "{schema}" CASCADE
                 return None
 
 def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
-    repo_path = os.path.join(settings.KART_REPO,repo_name)
+    repo_path = os.path.join(settings.DJAKART_REPO,repo_name)
     cmds = ["init", repo_path]
     if readonly_workingcopy:
         crea_pg_schema(readonly_workingcopy, readonly=True)
@@ -240,14 +240,14 @@ def crea_nuovo_repository(repo_name,bare=True,readonly_workingcopy=None):
 
 
 def get_config(v,key):
-    v_path = os.path.join(settings.KART_REPO,v)
+    v_path = os.path.join(settings.DJAKART_REPO,v)
     res = executeCmd(["--repo",v_path,"config", "--get", 'key'])
     return res
 
 
 def crea_nuova_versione(nuova_versione,base,tipo="pg",riserva_id=100):
-    nuova_versione_path = os.path.join(settings.KART_REPO,nuova_versione)
-    master_path = os.path.join(settings.KART_REPO,base)
+    nuova_versione_path = os.path.join(settings.DJAKART_REPO,nuova_versione)
+    master_path = os.path.join(settings.DJAKART_REPO,base)
     if tipo == 'pg':
         crea_pg_schema(nuova_versione)
         uri = get_pg_uri(nuova_versione)
@@ -278,7 +278,7 @@ def get_pg_uri(v):
 
 
 def create_workingcopy(v, uri=None, force=False):
-    v_path = os.path.join(settings.KART_REPO,v)
+    v_path = os.path.join(settings.DJAKART_REPO,v)
     cmds = ["--repo",v_path,"create-workingcopy"]
     if force:
         cmds.append('--delete-existing')
@@ -290,7 +290,7 @@ def create_workingcopy(v, uri=None, force=False):
 
 
 def merge_versione(versione, abort=False, confirm=False):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         #clone master
         #commit_versione(versione, '"merge %s"' % versione)
@@ -315,13 +315,13 @@ def merge_versione(versione, abort=False, confirm=False):
 
 
 def clone_versione(versione, target):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         clone_cmd = executeCmd(["clone", versione_path, target])
 
 
 def config_user_versione(versione, username, useremail):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         setuser = kart_cmd(versione_path, ["config", "user.name", username])
         setmail = kart_cmd(versione_path, ["config", "user.email", useremail])
@@ -343,21 +343,21 @@ def aggiorna_riferimenti(versione):
 
 
 def pull_versione(versione):  
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     #master_path = get_remote(versione)
     if os.path.exists(versione_path):
         push_cmd = executeCmd(["--repo", versione_path, "pull", "origin"])
 
 
 def kart_cmd(versione,args):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         kart_cmd = executeCmd(["--repo", versione_path] + args)
         return kart_cmd
 
 
 def importa_dataset(versione,ds_path,max_extent=None):
-    versione_path = os.path.join(settings.KART_REPO, versione)
+    versione_path = os.path.join(settings.DJAKART_REPO, versione)
     print ("versione_path", versione_path)
     if os.path.exists(versione_path):
         if not max_extent:
@@ -392,14 +392,14 @@ def importa_dataset(versione,ds_path,max_extent=None):
 
 
 def commit_versione(versione, messaggio):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         #recover_uncommitted_nulls(versione) #necessario per evitare successive exceptions di kart
         commit_cmd = executeCmd(["--repo", versione_path, "commit", "-m", messaggio])
 
 
 def elimina_versione(canc_versione):
-    canc_versione_path = os.path.join(settings.KART_REPO,canc_versione)
+    canc_versione_path = os.path.join(settings.DJAKART_REPO,canc_versione)
     pgschema = elimina_pg_schema(canc_versione)
     if os.path.exists(canc_versione_path):
         #clone master
@@ -410,7 +410,7 @@ def elimina_versione(canc_versione):
     
     
 def undo_commit_versione(versione, force=None):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         jlog = log_versione(versione,jsonoutput=True)
         hash = jlog[1]["commit"]
@@ -422,14 +422,14 @@ def undo_commit_versione(versione, force=None):
     
 
 def restore_versione(versione):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"restore"])
         return cmd
 
 
 def status_versione(versione, as_json=False):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         try:
             params = ["--repo",versione_path,"status"]
@@ -444,7 +444,7 @@ def status_versione(versione, as_json=False):
 
 
 def show_versione(versione, jsonoutput=False):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"show"], jsonoutput=jsonoutput)
         merged_list = cmd.replace("* ","").replace("  ","").split("\n")
@@ -452,7 +452,7 @@ def show_versione(versione, jsonoutput=False):
 
 
 def merged_list_versione(versione):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         try:
             cmd = executeCmd(["--repo",versione_path,"branch","--merged"], jsonoutput=False)
@@ -463,7 +463,7 @@ def merged_list_versione(versione):
 
 
 def log_versione(versione, jsonoutput=False):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"log"], jsonoutput=jsonoutput)
         return cmd
@@ -477,7 +477,7 @@ def _diff_view(crs,extent):
     
 
 def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, extent=[0,0,0,0], format='html'):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         jlog = log_versione(versione,jsonoutput=True)
         commit = list(filter(lambda target: target["commit"] == hash, jlog))
@@ -496,7 +496,7 @@ def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, extent=[0,0,0
 
 
 def conflitti_versione(versione, crs=SRID):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         conflicts_dir = os.path.join(versione_path,'conflicts')
         cmd = executeCmd(["--repo",versione_path,"conflicts", "--crs", crs,"-o","geojson","--output",conflicts_dir])
@@ -514,14 +514,14 @@ def conflitti_versione(versione, crs=SRID):
 
 
 def resolve_conflitto(versione, tag_conflitto, risoluzione):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"resolve","--with",risoluzione,tag_conflitto])
         return cmd
 
 
 def get_remote(versione, remote="origin", method='push'):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"remote","-v"])
         if cmd:
@@ -531,7 +531,7 @@ def get_remote(versione, remote="origin", method='push'):
 
 
 def list_versioned_tables(versione):
-    versione_path = os.path.join(settings.KART_REPO,versione.replace("_pub",""))
+    versione_path = os.path.join(settings.DJAKART_REPO,versione.replace("_pub",""))
     if os.path.exists(versione_path):
         cmd = executeCmd(["--repo",versione_path,"data","ls"])
         ds_list = cmd.split("\n")
@@ -544,7 +544,7 @@ def prevent_conflicts_on_ids(versione):
                 stepoverseq = ""
 
 def geo_tables(versione):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         geom_tables = []
         for tab in list_versioned_tables(versione):
@@ -559,7 +559,7 @@ def geo_tables(versione):
 
 
 def get_metadata(versione,tab):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         try:
             cmd = executeCmd(["--repo",versione_path,"meta","get",tab,"-o","json"])
@@ -569,7 +569,7 @@ def get_metadata(versione,tab):
 
 
 def get_schema(versione,tab,**kwargs):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         metadata = get_metadata(versione,tab)
         schema = {}
@@ -584,7 +584,7 @@ def get_schema(versione,tab,**kwargs):
 
 
 def recover_uncommitted_nulls(versione):
-    versione_path = os.path.join(settings.KART_REPO,versione)
+    versione_path = os.path.join(settings.DJAKART_REPO,versione)
     if os.path.exists(versione_path):
         cmd = kart_cmd(versione,['diff','-o','json'])
         uncommitted_diff = json.loads(cmd)

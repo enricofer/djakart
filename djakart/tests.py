@@ -60,7 +60,7 @@ def create_version(crs):
     return newver
 
 def destroy_kart_version(ver):
-    version_path = os.path.join(settings.KART_REPO, ver.nome)
+    version_path = os.path.join(settings.DJAKART_REPO, ver.nome)
     os.system('rm -Rf %s' % version_path)
     os.system('rm -f %s*.*' % version_path)
     elimina_pg_schema(ver)

@@ -182,7 +182,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         "conflicts":  json.dumps(conflicts), 
                         "crs": obj.crs,
                         "crscode": obj.crs.split(":")[-1],
-                        "root_wms":settings.DJAKART_QGIS_SERVER_EXTERNAL + '?MAP=/kart_versions/', 
+                        "root_wms":settings.DJAKART_QGIS_SERVER_EXTERNAL + '?MAP=' + settings.DJAKART_REPO, 
                         "base_name":obj.nome,
                         "version_name":version_name,
                         "version_id": obj.pk,
@@ -236,29 +236,29 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             if obj.base:
                 return (
                     ("intestazione", {
-                        'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
+                        'classes': ('collapse', 'expand-first',),
+                        'fields': ('nome', ('base','merged','clean',),'note','progetto','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
-                        'classes': ('grp-collapse grp-open',),
+                        'classes': ('collapse', 'expand-first',),
                         'fields': ('status', 'base_diff', 'log',)
                     }),
                 )
             else:
                 return (
                     ("intestazione", {
-                        'classes': ('grp-collapse grp-open',),
+                        'classes': ('collapse', 'expand-first',),
                         'fields': ('nome', ('base','merged','clean',),'reserved_ids','template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
-                        'classes': ('grp-collapse grp-open',),
+                        'classes': ('collapse', 'expand-first',),
                         'fields': ('status', 'base_diff', 'log',)
                     }),
                 )
         else:
             return (
                 ("intestazione", {
-                    'classes': ('grp-collapse grp-open',),
+                    'classes': ('collapse', 'expand-first',),
                     'fields': ('nome', 'base','reserved_ids','template_qgis','crs','note','referente','riservato')
                 }),
             )
@@ -494,7 +494,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     def rigen_local_gpkg(self,obj):
         if not obj.base:
             target_name = obj.nome+"_export"
-            target_path = os.path.join('/kart_versions', target_name) #settings.MEDIA_ROOT,
+            target_path = os.path.join(settings.DJAKART_REPO, target_name) #settings.MEDIA_ROOT,
             gpkg_path = os.path.join(target_path, target_name + ".gpkg")
             if os.path.exists(target_path):
                 shutil.rmtree(target_path)
@@ -530,7 +530,29 @@ class templateAdmin(DjangoObjectActions, admin.GISModelAdmin):
         return False
 
 admin.site.register(modelli, templateAdmin)
-admin.site.register(basemap)
+
+
+
+class basemapAdmin(DjangoObjectActions, admin.GISModelAdmin):
+
+    model = basemap
+    exclude = []
+    changelist_actions = [
+        'add_openstreetmap',
+    ]
+
+    def add_openstreetmap(self, request, obj):
+        osm = basemap.objects.filter(name="OpenStreetMap")
+        if not osm:
+            osm = basemap()
+            osm.name = "OpenStreetMap"
+            osm.oltype = "XYZ"
+            osm.srid = "EPSG:3857"
+            osm.url = "http://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            osm.save()
+        return HttpResponseRedirect("/admin/djakart/basemap/")
+        
+admin.site.register(basemap, basemapAdmin)
 
 admin.site.site_title = 'Djakart administration'
 admin.site.site_header = 'Djakart'
