@@ -46,8 +46,8 @@ def get_pg_uri(schema):
     return '''PG:"dbname='{dbname}' host='{host}' port='{port}' user='{user}' password='{pwd}' active_schema='{schema}'"'''.format(
             dbname=settings.DBPREFIX + settings.DJAKART_VERSION_DB,
             host=settings.DJAKART_HOST_EXTERNAL,
-            port=settings.DJAKART_POSTGRES_PORT_EXTERNAL
-            user=settings.DJAKART_POSTGRES_USER
+            port=settings.DJAKART_POSTGRES_PORT_EXTERNAL,
+            user=settings.DJAKART_POSTGRES_USER,
             pwd=settings.DJAKART_POSTGRES_PASSWORD,
             schema=schema
         )
