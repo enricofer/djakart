@@ -19,7 +19,7 @@ jobs:
     -  uses: actions/checkout@v2
 
     -  name: WEBAPP build
-       run: docker build --build-context webapp_root=./webapp -t enricofer/djakart:latest ./build_webapp
+       run: docker build -t enricofer/djakart:latest ./build_webapp
 
     -  name: QGIS build
        run: docker build -t enricofer/qgis-server:latest ./build_qgis
