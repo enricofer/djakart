@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import version, writeQgs,basemap
 
 from .kart_api import (
+    executeCmd,
     log_versione,
     status_versione, 
     show_versione,
@@ -78,6 +79,18 @@ def QGS_progetto(request,versione):
 def basemaps_js(request,depth):
     lyrsdef = basemap.getLyrs(depth)
     return HttpResponse(lyrsdef, content_type="text/javascript; charset=utf-8")
+
+@csrf_exempt
+def kart_api(request,cmdstring):
+    if cmdstring.endswith("/"):
+        cmdstring = cmdstring[:-1]
+    cmds = cmdstring.split("/")
+    repo = cmds[0]
+    repo_path = os.path.join(settings.KART_REPO,repo)
+    args = ["--repo", repo_path ] + cmds[1:] + ["-o", "json"]
+    res = executeCmd(args ,jsonoutput=True)
+    print (res)
+    return JsonResponse(res)
 
 @login_required
 @csrf_exempt

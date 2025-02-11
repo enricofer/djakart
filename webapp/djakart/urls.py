@@ -18,6 +18,7 @@ urlpatterns = [
     re_path(r'^qgs/(\w+)/$', views.QGS_progetto, name='qgs'),
     re_path(r'^basemaps/(background|foreground)/$', views.basemaps_js, name='basemaps'),
     re_path(r'^diff-view/(\w+)/$', views.diff_view, name='diffview'),
+    re_path(r'^kart-api/(.*?)$', views.kart_api, name='kart_api'),
     re_path(r'^diff\/(?P<versione>\w+)\/(?P<hash>\w+)\/((?P<parent_hash>\w+)?\/)?$', views.diff, name='diff'),
     #url(r'^diff/(?P<versione>\w+)/(?P<parent_hash>\w+)/(?P<parent_hash>\w+)/$', views.diff, name='diff'),
     #re_path(r'^login/', django.contrib.auth.views.LoginView),
