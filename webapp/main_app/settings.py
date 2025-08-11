@@ -105,6 +105,15 @@ DATABASES['default'] =  {
     'PORT' : os.environ.get("POSTGRES_PORT", ""),
 }
 
+DATABASES['backoffice'] =  {
+    'ENGINE': 'django.contrib.gis.db.backends.postgis',
+    'NAME': os.environ.get("POSTGRES_DB", ""),
+    'USER': os.environ.get("POSTGRES_USER", ""),
+    'PASSWORD' : os.environ.get("POSTGRES_PASSWORD", ""),
+    'HOST' : os.environ.get("POSTGRES_SERVER", ""),
+    'PORT' : os.environ.get("POSTGRES_PORT", ""),
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
 
