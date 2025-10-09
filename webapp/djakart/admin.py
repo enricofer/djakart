@@ -12,11 +12,15 @@ from django.conf import settings
 
 import json
 
+import subprocess
 import os
 import re
 import shutil
 import uuid
 from datetime import datetime
+
+from io import BytesIO
+from zipfile import ZipFile, ZIP_DEFLATED
 
 from .models import version, can_modify, modelli, basemap
 from .kart_api import (
@@ -38,6 +42,8 @@ from .kart_api import (
 )
 #SRID = os.environ.get("REPO_CRS")
 #SRID_CODE = SRID.split(":")[1]
+
+OGR2OGR = "/usr/bin/ogr2ogr"
 
 SITE_SUBPATH = os.environ.get("SITE_SUBPATH","")
 
@@ -81,7 +87,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
         'aggiorna',
         'importa_geopackage',
         'importa_template',
-        'esporta_geopackage',
+        'esporta',
         'nuova_versione_da_esistente'
     ]
     ordering = ['nome', ]
@@ -139,17 +145,18 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
         wrapper.__name__ = func.__name__
         return wrapper
 
-    def require_parameter(parameter):
+    def require_parameter(parameter,choices=None):
         def decorator(func):
             def wrapper(modeladmin,request,obj,**kwargs):
                 if request.GET.get(parameter) is None:
                     request.current_app = modeladmin.admin_site.name
                     context = {
                         "parameter":  parameter,
-                        "value": "{} ".format(obj.nome)
+                        "choices": choices,
+                        "value": "{} - ".format(obj.nome)
                     }
                     return TemplateResponse(request, "admin/action_parameter.html", context)
-                elif request.GET.get("confirmation") == "Ok":
+                elif request.GET.get("confirmation") == "Invia":
                     kwargs[parameter] = request.GET.get(parameter) 
 
                 return func(modeladmin, request,obj, **kwargs)
@@ -286,7 +293,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                     pre = []
             else:
                 if can_modify(request.user,obj):
-                    pre = ['importa_template', 'importa_geopackage', 'esporta_geopackage']
+                    pre = ['importa_template', 'importa_geopackage', 'esporta']
                 else:
                     pre = []
 
@@ -503,15 +510,15 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             res = clone_versione (obj.nome, target_path)
             return gpkg_path
 
-    @action(label="Export repository", description="Export repository as GeoPackage, Shapefiles or Esri Geodatabase")
-    def esporta_geopackage(self, request, obj):
+    
+    def ex_esporta_geopackage(self, request, obj):
         if obj.pk and not obj.base:
             response = FileResponse(open(self.rigen_local_gpkg(obj), 'rb'),content_type='application/octet-stream')
             response['Content-Disposition'] = 'attachment; filename="%s.gpkg"' % obj.nome
             return response
 
     #GDAL su rapper non supporta creazione di geodatabase esri
-    def esporta_gdb(self, request, obj):
+    def ex_esporta_gdb(self, request, obj):
         if obj.pk and not obj.base:
             gpkg_loc = self.rigen_local_gpkg(obj)
             gdb_tmp = os.path.join("/tmp", uuid.uuid4().hex) #settings.MEDIA_ROOT, 
@@ -519,6 +526,79 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             response = FileResponse(open(self.rigen_local_gpkg(obj), 'rb'),content_type='application/octet-stream')
             response['Content-Disposition'] = 'attachment; filename="%s.gpkg"' % obj.nome
             return response
+        
+    @action(label="Export repository", description="Export repository as GeoPackage, Shapefiles or Esri Geodatabase")
+    @require_parameter("Formato_di_esportazione", ["Geopackage", "Shapefiles", "GeoDataBase"])
+    def esporta(self, request, obj, **kwargs):
+        if obj.pk:
+            if kwargs["Formato_di_esportazione"] == "Geopackage":
+                return self.esporta_geopackage(request, obj)
+            if kwargs["Formato_di_esportazione"] == "Shapefiles":
+                return self.esporta_shp(request, obj)
+            if kwargs["Formato_di_esportazione"] == "GeoDataBase":
+                return self.esporta_gdb(request, obj)
+
+    def esporta_geopackage(self, request, obj):
+        if obj.pk:# and not obj.base:
+            response = FileResponse(open(self.rigen_local_gpkg(obj), 'rb'),content_type='application/octet-stream')
+            response['Content-Disposition'] = 'attachment; filename="%s.gpkg"' % obj.nome
+            return response
+
+    def esporta_gdb(self, request, obj):
+        if obj.pk:# and not obj.base:
+            return self.zip_and_response(obj, "OpenFileGDB")
+
+    def esporta_shp(self, request, obj):
+        if obj.pk:# and not obj.base:
+            return self.zip_and_response(obj, "ESRI Shapefile")
+    
+    def zip_and_response(self, obj, format):
+
+        if format == 'ESRI Shapefile':
+            ext = '.shp'
+        elif format == 'OpenFileGDB':
+            ext = '.gdb'
+
+        gpkg_loc = self.rigen_local_gpkg(obj)
+        dir_tmp = os.path.join(settings.MEDIA_ROOT, "tmp", uuid.uuid4().hex + ext)
+        if format in ('ESRI Shapefile', ): #'OpenFileGDB'):
+            os.mkdir(dir_tmp)
+
+        subprocess.run([OGR2OGR, '-skipfailures', '-f', format, dir_tmp, gpkg_loc])
+
+        zipMemory = BytesIO()
+        zip = ZipFile(zipMemory, 'w', ZIP_DEFLATED)
+
+        #for filename in os.listdir(dir_tmp):
+        #    print (filename)
+        #    zip.write(os.path.join(dir_tmp,filename),filename)
+        #    os.remove(os.path.join(dir_tmp,filename))
+        
+        for root, directories, files in os.walk(dir_tmp):
+            for file in files:
+                file_path = os.path.join(root, file)
+                archive_path = os.path.relpath(file_path, dir_tmp)
+                print (archive_path)
+                zip.write(file_path, archive_path)
+                os.remove(file_path)
+
+        for root, directories, files in os.walk(dir_tmp):
+            for dir in directories:
+                os.rmdir(os.path.join(root, dir))
+        
+        os.rmdir(dir_tmp)
+
+        # fix for Linux zip files read in Windows
+        for filename in zip.filelist:
+            print (filename)
+            filename.create_system = 0
+
+        zip.close()
+        zipMemory.seek(0)
+
+        response = FileResponse(zipMemory,content_type='application/octet-stream')
+        response['Content-Disposition'] = 'attachment; filename="%s%s.zip"' % (obj.nome,ext)
+        return response
 
 
 admin.site.register(version, versioniAdmin)
