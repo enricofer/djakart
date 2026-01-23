@@ -20,5 +20,6 @@ from django.http import HttpResponse
 urlpatterns = [
     path('admin/', admin.site.urls),
     re_path(r'^djakart/', include('djakart.urls')),
-    re_path(r'^healthcheck/', lambda r: HttpResponse())
+    re_path(r'^healthcheck/', lambda r: HttpResponse()),
+    re_path(r'^{}accounts/'.format(SITE_SUBPATH), include('django.contrib.auth.urls')),
 ]

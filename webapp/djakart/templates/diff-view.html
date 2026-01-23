@@ -87,7 +87,14 @@
         #tables .update.old {
             border-bottom: 0;
         }
-
+        #download {
+            background-color: rgba(90, 90, 90, 0.3);
+            cursor: pointer;
+        }
+        #patch {
+            background-color: rgba(90, 90, 90, 0.3);
+            cursor: pointer;
+        }
         .legend {
             margin-top: 30px;
         }
@@ -263,6 +270,9 @@ function diffStyle(feature, resolution) {
                 view: new ol.View({
                   projection: CRSID,
                   center: ol.extent.getCenter(globExt),
+                  
+                  //NB needed to avoid depth mapproxy regens ....
+                  //maxZoom: 10
                   //extent: globExt
                 })
              });
@@ -271,6 +281,7 @@ function diffStyle(feature, resolution) {
                 map.forEachFeatureAtPixel(e.pixel, function (feature, layer) {
                     const dataset = feature.getId().split(":").at(0)
                     selectMapFeature(dataset, feature.getId())
+                    selectTableFeature(dataset, feature.getId())
                 })
             });
 
@@ -280,6 +291,34 @@ function diffStyle(feature, resolution) {
             map.addControl(layerSwitcher);
             
             map.getView().fit(globExt, map.getSize());
+
+            document.getElementById('download').addEventListener("click", function(e) {
+                var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DATA));
+                var downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href",     dataStr);
+                downloadAnchorNode.setAttribute("download", "${title}.geojson");
+                document.body.appendChild(downloadAnchorNode); // required for firefox
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }); 
+
+            document.getElementById('patch').addEventListener("click", function(e) {
+                var downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href",  window.location.href+'?format=patch');
+                downloadAnchorNode.setAttribute("download", "${title}.patch");
+                document.body.appendChild(downloadAnchorNode); // required for firefox
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }); 
+        }
+
+
+        function selectTableFeature(ds, fid) {
+            let tableds = document.querySelector('[data-dataset="' + ds + '"]');
+            let row = tableds.querySelector('tr[data-fid="' + fid + '"]');
+            tableds.parentElement.style = "display:block;";
+            row.scrollIntoView({behavior: "smooth", block: "center", inline: "nearest" });
+            row.classList.add('selected');
         }
 
 
@@ -522,6 +561,8 @@ function diffStyle(feature, resolution) {
         <span class="bg-ins">Insert</span>
         <span class="bg-upd-old">Update (previous)</span>
         <span class="bg-upd-new">Update (new)</span>
+        <span id="download" class="button">Download diffs</span>
+        <span id="patch" class="button">Download patch</span>
     </div>
 
     <div id='tables'></div>

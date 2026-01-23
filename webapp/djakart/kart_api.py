@@ -1,6 +1,7 @@
 #defaults
 from django.conf import settings
 from django.template.loader import render_to_string
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 #from django.db import connections
 
 import os
@@ -131,7 +132,6 @@ GRANT ALL ON TABLE "{schema}".pua TO postgres;
             }
 
             try:
-                print (crea_fdw_template.format(**common_params, schema=nuova_versione))
                 cursor.execute(crea_fdw_template.format(**common_params, schema=nuova_versione))
                 return True
             except Exception as e:
@@ -158,7 +158,6 @@ GRANT SELECT ON ALL TABLES IN SCHEMA "{schema}" TO "{admin}";
 
         with conn.cursor() as curs:
             curs.execute(crea_schema_template.format(schema=nuova_versione, owner=schema_owner, admin=KART_SU, user=KART_PGUSER))
-            print ("crea_schema_template", crea_schema_template.format(schema=nuova_versione, owner=schema_owner, admin=KART_SU, user=KART_PGUSER))
 
 
 def grant_select_schema(versione, schema_user=KART_PGUSER, schema_admin=KART_SU):
@@ -262,6 +261,7 @@ def crea_nuova_versione(nuova_versione,base,tipo="pg",riserva_id=100):
         grant_select_schema(nuova_versione)
         #crea_fdw(nuova_versione)
         serial_pk_setup(nuova_versione, aumento=riserva_id)
+        serial_pk_setup(base, as_version=nuova_versione)
 
 
 def get_pg_uri(v):
@@ -356,7 +356,6 @@ def kart_cmd(versione,args):
 
 def importa_dataset(versione,ds_path,max_extent=None):
     versione_path = os.path.join(settings.KART_REPO, versione)
-    print ("versione_path", versione_path)
     if os.path.exists(versione_path):
         if not max_extent:
             max_extent = [sys.float_info.max, sys.float_info.max, -sys.float_info.max, -sys.float_info.max]
@@ -466,6 +465,18 @@ def log_versione(versione, jsonoutput=False):
         cmd = executeCmd(["--repo",versione_path,"log"], jsonoutput=jsonoutput)
         return cmd
 
+def aggiorna_cache_versione(versione):
+    versione_path = os.path.join(settings.KART_REPO,versione)
+    if os.path.exists(versione_path):
+        log_json = log_versione(versione,jsonoutput=True)
+        log_file = os.path.join(settings.KART_REPO,versione + '.json')
+        with open(log_file,'r', encoding='utf8') as ljf:
+            log_content = json.loads(ljf.read())
+        log_content["log_json"] = log_json
+        with open(log_file,'w', encoding='utf8') as ljf:
+            ljf.write(json.dumps(log_content))
+        return {"CMD":"aggiorna_cache_versione","result": "OK"}
+    return {"CMD":"aggiorna_cache_versione","result": "KO"}
 
 def _diff_view(crs,extent):
     return  render_to_string(
@@ -475,12 +486,15 @@ def _diff_view(crs,extent):
     
 
 def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, extent=[0,0,0,0], format='html'):
+    if not format:
+        format = 'html'
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
-        jlog = log_versione(versione,jsonoutput=True)
-        commit = list(filter(lambda target: target["commit"] == hash, jlog))
-        if commit and not prev:
-            prev = commit[0]["parents"][0] 
+        #jlog = log_versione(versione,jsonoutput=True)
+        #commit = list(filter(lambda target: target["commit"] == hash, jlog))
+        if (hash and not prev) or (hash == prev):
+            #prev = commit[0]["parents"][0] 
+            prev = hash + '~'
         if format == 'html':
             with open("/tmp/diff-view.html", "w", encoding="utf8") as diff_template:
                 diff_template.write(_diff_view(crs, extent))
@@ -490,7 +504,99 @@ def genera_diff_versione(versione, hash=None, prev=None, crs=SRID, extent=[0,0,0
                 cmd = executeCmd(["--repo",versione_path,"diff","-o","html", "--html-template", '/tmp/diff-view.html', "--crs", crs, "--output", "-", prev, hash])
         elif format == 'json':
             cmd = executeCmd(["--repo",versione_path,"diff","-o","json", "--output", "-", hash])
+        elif format == 'patch':
+            cmd = executeCmd(["--repo",versione_path,"create-patch", hash])
         return cmd
+
+def commit_detail(versione, hash, link_prefix=None):
+    versione_path = os.path.join(settings.KART_REPO,versione)
+    if os.path.exists(versione_path):
+        cmd_output = executeCmd(["--repo",versione_path,"show","-o","json",hash], jsonoutput=True)
+        bound_geom = None
+        for layer_name, layer_det in cmd_output["kart.diff/v1+hexwkb"].items():
+            for detail in layer_det["feature"]:
+                for op in ['+','-']:
+                    if op in detail:
+                        if "geom" not in detail[op]:
+                            continue
+
+                        try:
+                            geom = GEOSGeometry(detail[op]['geom'], srid=3003)
+                        except:
+                            continue
+                            
+                        if geom.geom_type in ( "LineString", "MultiLineString", "Point", "MultiPoint" ):
+                            geom = geom.buffer(0.01)
+
+                        if bound_geom:
+                            union_geom = bound_geom.union(geom.buffer(0))
+                        else:
+                            union_geom = geom.buffer(0)
+                        if union_geom.geom_type != "GeometryCollection":
+                            bound_geom = union_geom 
+                        else:
+                            print("CORRECTION GeometryCollection during union")
+                            geoms = [g for g in union_geom if g.geom_type in ("Polygon", "MultiPolygon")]
+                            print ("GEOMS", geoms)
+                            bound_geom = MultiPolygon(geoms)
+        if bound_geom:
+            if bound_geom.geom_type == "Polygon":
+                target_geom = MultiPolygon([bound_geom])
+            else:
+                target_geom = bound_geom
+
+            
+            if target_geom.geom_type == 'GeometryCollection':
+                print ("CORRECTION GeometryCollection", hash, target_geom.json)
+                geoms = [g for g in target_geom.geoms if not g.is_empty]
+                target_geom = MultiPolygon(geoms)
+        else:
+            target_geom = GEOSGeometry('MULTIPOLYGON EMPTY', srid=3003)
+
+        feature = {
+            "type": "Feature",
+            "geometry": json.loads(target_geom.json),
+            "properties": {
+                "versione": versione,
+                "abbrevCommit": hash[:7],
+                "commit": hash,
+                "authorName": cmd_output["kart.show/v1"]["authorName"],
+                "commitTime": cmd_output["kart.show/v1"]["commitTime"],
+                "message": cmd_output["kart.show/v1"]["message"]
+            }
+        }
+        
+        if link_prefix:
+            feature["properties"]["link"] = link_prefix + "/{}//".format(hash)
+        return feature
+
+def version_details(versione, range_from,range_to, link_prefix=None):
+    versione_path = os.path.join(settings.KART_REPO,versione)
+    if os.path.exists(versione_path):
+        jlog = log_versione(versione,jsonoutput=True)
+        commits = []
+        for idx,commit in enumerate(jlog):
+            print ("LOG",idx, commit["message"], commit["commit"],range_from, range_to)
+            if not commits:
+                if commit["commit"] in (range_from, range_to):
+                    commits.append(commit)
+            else:
+                if range_from == range_to:
+                    break
+                if commit["commit"] in (range_from, range_to):
+                    break
+                commits.append(commit)
+
+        feat_commits = []
+        for idx,commit in enumerate(commits):
+            print ("COMMIT",idx, commit["message"], commit["commit"])
+            feat = commit_detail(versione, commit["commit"], link_prefix=link_prefix)
+            feat_commits.append(feat)
+        geojson = {
+            "type": "FeatureCollection",
+            "features": feat_commits
+        }
+        return geojson
 
 
 def conflitti_versione(versione, crs=SRID):
@@ -612,7 +718,7 @@ def recover_uncommitted_nulls(versione):
                     cursor.execute(sql)
 
 def get_schema(schema):
-    sql = """ SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname like '{schema}%';""".format(schema=schema)
+    sql = """ SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname in ('{schema}', '{schema}_pub');""".format(schema=schema)
     with get_pg_versions_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(sql)
@@ -635,24 +741,90 @@ def get_sequences(schema):
             return [row[0] for row in cursor.fetchall()]
 
 
-def serial_pk_setup(versione, aumento=100):
+def serial_pk_setup(version, as_version=None, aumento=100):
     with get_pg_versions_connection() as conn:
         with conn.cursor() as cursor:
-            base_path = get_remote(versione)
-            base = os.path.split(base_path)[-1]
-            if base:
+            base_path = get_remote(version)
+            if base_path:
+                base = os.path.split(base_path)[-1]
                 base_schema = get_schema(base)
                 sequences = get_sequences(base_schema)
                 for tab in list_versioned_tables(base):
                     if not (tab + "_fid_seq") in sequences:
                         continue
+                    sql = """SELECT last_value FROM "{schema}"."{table}_fid_seq";""".format(schema=version, table=tab)
+                    cursor.execute(sql)
+                    version_min_pk = cursor.fetchone()[0]
                     sql = """SELECT last_value FROM "{schema}"."{table}_fid_seq";""".format(schema=base_schema, table=tab)
                     cursor.execute(sql)
                     base_min_pk = cursor.fetchone()[0]
-                    min_pk = base_min_pk + aumento
-                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=versione, table=tab, val=min_pk)
+                    min_pk = base_min_pk if base_min_pk > version_min_pk else version_min_pk + aumento
+                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=version, table=tab, val=min_pk)
                     cursor.execute(sql)
+                    print (sql)
                     sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=base_schema, table=tab, val=min_pk)
                     cursor.execute(sql)
+                    print (sql)
+            elif as_version:
+                ref_schema = get_schema(as_version)
+                sequences = get_sequences(ref_schema)
+                for tab in list_versioned_tables(version):
+                    if not (tab + "_fid_seq") in sequences:
+                        continue
+                    sql = """SELECT last_value FROM "{schema}"."{table}_fid_seq";""".format(schema=ref_schema, table=tab)
+                    cursor.execute(sql)
+                    base_min_pk = cursor.fetchone()[0]
+                    min_pk = base_min_pk 
+                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=version, table=tab, val=min_pk)
+                    cursor.execute(sql)
 
 
+def get_commit_boundary(versione, commit, output='wkt'):
+    versione_path = os.path.join(settings.KART_REPO,versione)
+    if os.path.exists(versione_path):
+        cmd = executeCmd(["--repo",versione_path,"show","-o","json",commit])
+        commits = json.loads(cmd)
+
+        geom = None
+
+        for layer,details in commits["kart.diff/v1+hexwkb"].items():
+            for feature in details["feature"]:
+                for update in ['+','-']:
+                    if update in feature:
+                        if geom:
+                            try:
+                                geom = geom.union(GEOSGeometry.from_wkb(bytes.fromhex(feature[update]['hexwkb'])))
+                            except:
+                                geom = geom.union(GEOSGeometry(feature[update]['geom']).buffer(0))
+                        else:
+                            geom = GEOSGeometry(feature[update]['geom'])
+        if output == 'geojson':
+            feature = {
+                "type": "Feature",
+                "geometry": json.loads(geom.geojson) if geom else None,
+                "properties":  {i:commits["kart.show/v1"][i] for i in commits["kart.show/v1"] if not i in ['parents','abbrevParents']}
+            }
+            return feature
+        elif output == 'wkt':
+            return geom.wkt if geom else None
+
+def get_context(versione,filter=None, format='wkt', union=False):
+    versione_path = os.path.join(settings.KART_REPO,versione)
+    commits = log_versione(versione,jsonoutput=True)
+    context_features = []
+    for commit in commits:
+        if filter and filter.upper() in commit["message"].upper():
+            context_features.append(get_commit_boundary(versione, commit["commit"], output=format))
+    if union:
+        bind_geometry = None
+        for feat in context_features:
+            if bind_geometry:
+                bind_geometry = bind_geometry.union(GEOSGeometry(feat))
+            else:
+                bind_geometry = GEOSGeometry(feat)
+        return bind_geometry.wkt if bind_geometry else None
+    else:   
+        return context_features
+
+#kart show -o geojson c87ccfa7592c462a3edc2ad80065443e78bf35af | ogrinfo  /vsistdin/ -dialect sqlite -sql "SELECT ST_Union(geometry) FROM \"\""
+#kart show -o geojson c87ccfa7592c462a3edc2ad80065443e78bf35af | ogr2ogr -f "CSV" /vsistdout/ /vsistdin/ -dialect sqlite -sql "SELECT ST_Union(geometry) FROM \"\"" -lco "GEOMETRY=AS_WKT"

@@ -16,10 +16,12 @@ from .kart_api import (
     show_versione,
     _diff_view,
     commit_versione,
+    version_details,
     genera_diff_versione,
     restore_versione,
     list_versioned_tables,
     geo_tables,
+    aggiorna_cache_versione,
     KART_PGUSER,
     KART_PGUSER_PWD
 
@@ -61,8 +63,9 @@ def status(request,versione):
     return render(request, 'log.html', {'log': status})
 
 def diff(request,versione,hash,parent_hash=""):
+    formato = request.GET.get('format')
     versione_obj = version.objects.get(nome=versione)
-    diff = genera_diff_versione(versione,hash,parent_hash,crs=versione_obj.crs, extent=versione_obj.extent)
+    diff = genera_diff_versione(versione,hash,parent_hash,crs=versione_obj.crs, extent=versione_obj.extent, format=formato)
     print (diff)
     return HttpResponse(diff)
 
@@ -72,6 +75,14 @@ def diff_view(request,versione):
     response['Content-Disposition'] = 'inline; filename="diff-view.html"'
     return response
 
+def vlayer(request,versione,hash_from,hash_to, write_file=False):
+    geojson_obj = version_details(versione, hash_from, hash_to)
+    if write_file:
+        vlayer_path = os.path.join("/kart_versions", versione+'.geojson')
+        with open(vlayer_path, 'w') as f:
+            f.write(json.dumps(geojson_obj))
+    return JsonResponse(geojson_obj, safe=False)
+
 def QGS_progetto(request,versione):
     versione_obj = version.objects.get(nome=versione)
     progetto = writeQgs(versione_obj)
@@ -79,13 +90,47 @@ def QGS_progetto(request,versione):
     response['Content-Disposition'] = 'attachment; filename="%s.qgs"' % versione
     return response
 
+def geojson_summary(request,versione):
+    versione_obj = version.objects.get(nome=versione)
+    summary = versione_obj.sommario_versione()
+    response = HttpResponse(summary, content_type='application/geo+json')
+    response['Content-Disposition'] = 'attachment; filename="%s.geojson"' % versione
+    return response
+
 def basemaps_js(request,depth):
     lyrsdef = basemap.getLyrs(depth)
     return HttpResponse(lyrsdef, content_type="text/javascript; charset=utf-8")
 
-#@login_required
-@csrf_exempt
+
+def summary(versione_id):
+    versione_obj = version.objects.get(pk=versione_id)
+    summary_path = os.path.join("/kart_versions", versione_obj.nome+'.geojson')
+    if os.path.exists(summary_path):
+        print ("summary_path", summary_path)
+        with open(summary_path, 'r') as f:
+            geojson_obj = json.load(f)
+            geojson_js = "JSON.parse('"+json.dumps(geojson_obj)+"')"
+    else:
+        #geojson_obj = versione_obj.sommario_versione()
+        geojson_js = 'undefined /* error: summary not available */'
+    return geojson_js
+
+def params_js(request,versione_id):
+    versione_obj = version.objects.get(pk=versione_id)
+    paramsdef = 'var params = {'
+    paramsdef += 'version: "{}", '.format(versione_obj.nome) 
+    paramsdef += 'base: "{}", '.format(versione_obj.base.nome if versione_obj.base else versione_obj.nome) 
+    paramsdef += 'archiviato: {}, '.format("true" if versione_obj.archiviato else "false")
+    paramsdef += 'site_subpath: "{}", '.format(settings.SITE_SUBPATH)
+    paramsdef += 'crs: "{}", '.format(versione_obj.crs)
+    paramsdef += 'polyJSON: ' + summary(versione_id)
+    paramsdef += '}'
+    return HttpResponse(paramsdef, content_type="text/javascript; charset=utf-8")
+
+@login_required
+#@csrf_exempt
 def kart_api(request,cmdstring):
+    print("USER", request.user)
     if cmdstring.endswith("/"):
         cmdstring = cmdstring[:-1]
     cmds = cmdstring.split("/")
@@ -101,6 +146,16 @@ def kart_api(request,cmdstring):
         return HttpResponse(res, content_type='text/plain')
 
 @login_required
+#@csrf_exempt
+def update(request,version_id):
+    try:
+        aggiorna_cache_versione(version_id)
+        res = "OK"
+    except Exception as E:
+        res = "KO: %s" % str(E)
+    return JsonResponse({"result": res})
+
+#@login_required
 @csrf_exempt
 def set_version_extent(request, version_id):
     print ("version_id", version_id)

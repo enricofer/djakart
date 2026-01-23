@@ -3,6 +3,8 @@ console.log('FINESTRAMAPPA LOADING')
 var map_glob, getfeature_popup;
 var polyObject, zoningObject //polyJSON, zoningJSON, 
 var polyFeatures, polyOverlaysx, polyOverlaydx, currentOverlay, versionOverlay, dbtOverlay;
+var polySource;
+var current_version_id
 
 var targetProjection = CRSID
 
@@ -62,12 +64,31 @@ window.app = {};
 var app = window.app;
 
 
-function loadFinestraMappa( polyWKT) { 
+function loadFinestraMappa( ) { 
 
+    //params è caricato da /djakart/vparams/{versione}/
+
+    console.log("archiviato",params.archiviato)
     console.log(versioni_wms)
 
     var base_wms = versioni_wms[1]["wms"]
     var versione_wms = versioni_wms[0]["wms"]
+
+    current_version_id = versioni_wms[0]["nome"].split(", ")[1]    
+
+    /*
+    var summary_layer
+    if (archiviato) {
+        summary_layer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+                format: ol.format.GeoJSON(),
+                url: SITE_SUBPATH + '/djakart/summary_geojson/' + current_version_id + '/'
+            }),
+            title: 'commits summary',
+            style: polygonStyleFunction
+        })
+    }
+    */
 
     console.log("ONLOAD è ORA")
     $( "h2:contains('posizione_mod')" ).parent().hide()
@@ -102,8 +123,8 @@ function loadFinestraMappa( polyWKT) {
     let slider
     let multipolygon
     window.currentID = 99999
-    if (polyWKT) {
-        multipolygon = new ol.format.WKT().readGeometry(polyWKT)
+    if (params.polyWKT) {
+        multipolygon = new ol.format.WKT().readGeometry(params.polyWKT)
         polyFeatures = new ol.Collection();
         slider = 0.5
 
@@ -127,27 +148,41 @@ function loadFinestraMappa( polyWKT) {
             id: currentID
         }))
 
+        polySource = new ol.source.Vector({
+            features: polyFeatures
+        })
+
     }
+
+    else if ( params.polyJSON ) {
+        
+        polySource = new ol.source.Vector({
+                /*format: ol.format.GeoJSON(),*/
+                //url: params.polyJSON
+                features: new ol.Collection( new ol.format.GeoJSON().readFeatures(params.polyJSON))
+            })
+    }
+
     else {
-        polyFeatures = new ol.Collection()
+
+        polySource = new ol.source.Vector({
+            features: new ol.Collection()
+        })
         slider = 0
     }
 
     polyOverlaysx = new ol.layer.Vector({
-        source: new ol.source.Vector({
-            features: polyFeatures
-        }),
-        title: 'perimetro relativo alla richiesta',
+        source: polySource,
+        title: 'commit summary',
         style: polygonStyleFunction
     });
 
     polyOverlaydx = new ol.layer.Vector({
-        source: new ol.source.Vector({
-            features: polyFeatures
-        }),
-        title: 'perimetro relativo alla richiesta',
+        source: polySource,
+        title: 'commit summary',
         style: polygonStyleFunction
     });
+
     console.log("base_wms",base_wms)
 
     currentOverlay = new ol.layer.Tile({
@@ -167,8 +202,6 @@ function loadFinestraMappa( polyWKT) {
         params: {layers: 'VERSION',CRS:CRSID,'DPI':150}
       })
     })
-
-
 
     class toolbar extends ol.control.Control {
 
@@ -305,9 +338,18 @@ function loadFinestraMappa( polyWKT) {
 
     const backgroundlyrs = getBackgroundLyrs()
     const foregroundlyrs = getForegroundLyrs()
-    const versionLyrs = [currentOverlay, versionOverlay]
+    let versionLyrs
+    if (params.archiviato) {
+        versionLyrs = [currentOverlay]
+    } else {
+        versionLyrs = [currentOverlay, versionOverlay]
+    }
 
     let lyrs = [osmlayer].concat(backgroundlyrs,versionLyrs,foregroundlyrs)
+
+    if (params.polyJSON) {
+        lyrs = lyrs.concat(polyOverlaysx)
+    }
     
     console.log("lyrs", lyrs)
 
@@ -327,6 +369,18 @@ function loadFinestraMappa( polyWKT) {
         })
     })
 
+
+
+    map_glob.on('singleclick', function(evt) {
+        const features = polyOverlaysx.getSource().getFeaturesAtCoordinate(evt.coordinate)
+        const feature = features.length ? features[0] : undefined;
+        if (feature) {
+            let link = feature.get('link');
+            if (params.archiviato) link = link.replace(params.version,params.base);
+            window.open(link, '_blank').focus();
+        }
+    });
+
     //lyrs.forEach((item) => map_glob.addLayer(item))
 
     if (currentID != 99999) {
@@ -337,38 +391,43 @@ function loadFinestraMappa( polyWKT) {
         tipLabel: 'Legenda' // Optional label for button
     });
 
+
+    if (!params.archiviato) {
+        // CurrentOverlaySX control
         // Control
-    var ctrl = new ol.control.Swipe({"position":slider});
-    map_glob.addControl(ctrl);
+        var ctrl = new ol.control.Swipe({"position":slider});
+        map_glob.addControl(ctrl);
 
-    if (base_wms == "") {
-        ctrl.set('position', 0.05);
-    }
-
-    // CurrentOverlaySX control
-
-    var currentOverlaySX_control = new comboversioni(versioni_wms,1,"SX")
-    map_glob.addControl(currentOverlaySX_control);
-    var currentOverlayDX_control = new comboversioni(versioni_wms,0,"DX")
-    map_glob.addControl(currentOverlayDX_control);
-
-    // Set base version on left panel
-    ctrl.addLayer(currentOverlay);
-    // set current verision on right panel
-    ctrl.addLayer(versionOverlay, true);
-
-    map_glob.getView().on('propertychange', function(e) {
-        switch (e.key) {
-            case 'resolution':
-            console.log('resolution');
-            console.log(e.oldValue);
-            break;
+        if (base_wms == "") {
+            ctrl.set('position', 0.05);
         }
-    });
+
+        var currentOverlaySX_control = new comboversioni(versioni_wms,1,"SX")
+        map_glob.addControl(currentOverlaySX_control);
+        var currentOverlayDX_control = new comboversioni(versioni_wms,0,"DX")
+        map_glob.addControl(currentOverlayDX_control);
+
+        // Set base version on left panel
+        ctrl.addLayer(currentOverlay);
+        // set current verision on right panel
+        ctrl.addLayer(versionOverlay, true);
+
+        map_glob.getView().on('propertychange', function(e) {
+            switch (e.key) {
+                case 'resolution':
+                console.log('resolution');
+                console.log(e.oldValue);
+                break;
+            }
+        });
+    }
 
     map_glob.addControl(layerSwitcher);
 
-    map_glob.getView().fit(targetExtent, map_glob.getSize());
-    
-    //enable_layer_state_tracking(map_glob)
+    if (params.polyJSON) {
+        map_glob.getView().fit(polyOverlaysx.getSource().getExtent(), map_glob.getSize());
+    } else {
+        map_glob.getView().fit(targetExtent, map_glob.getSize());
+    }
+
 }

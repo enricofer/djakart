@@ -74,7 +74,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     #modifiable = False
     #form = versioniForm
     #readonly_fields = ('mapping_service_url', 'log', 'status', 'mapa', 'get_project')
-    list_display = ('nome','base','origine','merged','last_commit','note','progetto', )
+    list_display = ('nome','base','origine','merged','archiviato','last_commit','note','progetto', )
     changelist_actions = ('aggiorna_cache', )
     change_actions = [
         'merge',
@@ -88,13 +88,13 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
         'importa_geopackage',
         'importa_template',
         'esporta',
+        'archivia_versione',
         'nuova_versione_da_esistente'
     ]
     ordering = ['nome', ]
 
     def change_view(self, request, object_id, **kwargs):
         obj = version.objects.get(pk=object_id)
-        print 
         if not "extra_context" in kwargs:
             kwargs["extra_context"] = {}
         kwargs["extra_context"]['crs'] = obj.crs.split(":")[1]
@@ -195,7 +195,8 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         "base_name":obj.nome,
                         "version_name":version_name,
                         "version_id": obj.pk,
-                        "continue": not conflicts
+                        "continue": not conflicts,
+                        "site_subpath": SITE_SUBPATH or "",
                     }
                     return TemplateResponse(request, "admin/resolve_conflicts.html", context)
                 elif request.GET.get("confirmation") == "Risolvi i conflitti":
@@ -234,34 +235,47 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
     def get_readonly_fields(self, request, obj=None):
         if not obj:
-            return ('clean','mapping_service_url', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged')
+            return ('clean','mapping_service_url', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'get_summary')
         if can_modify(request.user,obj):
-            return ('apply_map_extent', 'clean','mapping_service_url', 'crs', 'base_diff', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'nome', 'base')
+            return ('apply_map_extent', 'clean','mapping_service_url', 'crs', 'base_diff', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'nome', 'base', 'get_summary', 'archiviato')#, 'entry_commit'
         else:
-            return ('clean','mapping_service_url', "template_qgis", 'crs', 'base_diff', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'referente', 'riservato', 'nome', 'base', 'origine')
+            return ('clean','mapping_service_url', "template_qgis", 'crs', 'base_diff', 'log', 'last_commit', 'status', 'mapa', 'get_project', 'merged', 'referente', 'riservato', 'nome', 'base', 'origine', 'get_summary', 'archiviato')#, 'entry_commit'
 
     def get_fieldsets(self, request, obj=None):
         if obj:
             if obj.base:
-                return (
-                    ("intestazione", {
-                        'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
-                    }),
-                    ("rapporti", {
-                        'classes': ('grp-collapse grp-open',),
-                        'fields': ('status', 'base_diff', 'log',)
-                    }),
-                )
+                if obj.archiviato:
+                    return (
+                        ("intestazione", {
+                            'classes': ('grp-collapse grp-open',),
+                            'fields': ('nome', ('base','merged','archiviato',),'note','mapa',)
+                        }),
+                        ("rapporti", {
+                            'classes': ('grp-collapse grp-open',),
+                            'fields': ('log',)
+                        }),
+                    )
+                
+                else:
+                    return (
+                        ("intestazione", {
+                            'classes': ('grp-collapse grp-open',),
+                            'fields': ('nome', ('base','merged','clean','archiviato'),'template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
+                        }),
+                        ("rapporti", {
+                            'classes': ('grp-collapse grp-open',),
+                            'fields': ('status', ('entry_commit', 'get_summary'), 'base_diff', 'log',)
+                        }),
+                    )
             else:
                 return (
                     ("intestazione", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('nome', ('base','merged','clean',),'reserved_ids','template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
+                        'fields': ('nome', ('base','merged','clean',), 'reserved_ids','template_qgis','note','get_project','mapping_service_url',('referente','riservato'),'mapa',('crs','extent','apply_map_extent'))
                     }),
                     ("rapporti", {
                         'classes': ('grp-collapse grp-open',),
-                        'fields': ('status', 'base_diff', 'log',)
+                        'fields': ('status', 'get_summary', 'base_diff', 'log',)
                     }),
                 )
         else:
@@ -276,6 +290,8 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     def get_change_actions(self, request, object_id, form_url):
 
         obj = version.objects.get(pk=object_id)
+        if obj.archiviato:
+            return []
         if obj.is_clean:
             if obj.base:
                 if can_modify(request.user,obj.base):
@@ -289,6 +305,8 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                             pre = ['merge','importa_geopackage',]
                         else:
                             pre = []
+                    if obj.is_merged and not obj.archiviato:
+                        pre.append('archivia_versione')
                 else:
                     pre = []
             else:
@@ -321,15 +339,27 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
     def aggiorna_cache(modeladmin, request, queryset):
         for v in queryset:
             v.salva_cache()
+    
+    @action(label="Archive version", description="Archive version")
+    @require_confirmation
+    def archivia_versione(self, request, obj):
+        obj.archivia_versione()
 
     def base_diff(self,obj):
         if obj.pk:
+            if obj.archiviato:
+                return "archived version"
             diff_html = '<select id="version-source-diff" class="form-select">'
             log_items = obj.log_json
             options_html = ''
             for item in log_items:
                 options_html += '<option value="{commit}">{abbrevCommit} {message}</option>'.format(**item)
             #diff_html += '{options}</select><select id="versioni-target-diff" class="form-select"><option value="" disabled selected hidden>Scegliere un commit...</option>{options}</select><a onclick="generaDiff(\'{versione}\')" target="_blank">Genera diff</a>'.format(versione=obj.nome,options=options_html)
+            if obj.entry_commit:
+                diff_html += '<option value="{entrypoint}">Entrypoint from entry commit ({abbrev})</option>'.format(entrypoint=obj.entry_commit, abbrev=obj.entry_commit[0:7])
+            if obj.base:
+                entry = obj.entrypoint
+                diff_html += '<option value="{entrypoint}">Entrypoint from base ({abbrev})</option>'.format(entrypoint=entry, abbrev=entry[0:7])
             diff_html += '<option value="PARENT" disabled selected>Previous commit</option>{options}</select>'.format(options=options_html)
             return format_html(diff_html)
         else:
@@ -341,10 +371,10 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             log_items = obj.log_json
             li_html = ""
             for item in log_items:
-                li = '<li><a href="#" onclick="generateDiff(\'{subpath}\',\'{versione}\',\'{commit}\',\'{parent}\');event.preventDefault();" target="_blank">{abbrevCommit}</a></br>{message}</br>authored by {authorName} {commitTime}</br></li>' #href="/versioni/diff/{versione}/{commit}/{parent}/"
+                li = '<li><a href="#" onclick="generateDiff(\'{subpath}\',\'{versione}\',\'{commit}\',\'\');event.preventDefault();" target="_blank">{abbrevCommit}</a></br>{message}</br>authored by {authorName} {commitTime}</br></li>'
                 item["message"] = item["message"].replace("\n", "</br>")
-                item["parent"] = item["parents"][0] if item["parents"] else ""
-                li_html += li.format(subpath=SITE_SUBPATH, versione=obj.nome, **item)
+                item["versione"] = obj.base.nome if (obj.archiviato and obj.base) else obj.nome
+                li_html += li.format(subpath=SITE_SUBPATH, **item)
             html = "<ul>%s</ul>" % li_html
             return format_html(html)
         else:
@@ -380,11 +410,24 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
     def mapa(self, obj):
         if obj.pk:
-            html= '''<div id="map"></div><script>window.onload = loadFinestraMappa()</script>'''
-            return format_html(html)
+            params = '{'
+            if obj.archiviato:
+                params += 'archiviato: true,'
+            if os.path.exists("/kart_versions/{}.geojson".format(obj.nome)):
+                params += 'polyJSON: "{}",'.format(SITE_SUBPATH + '/djakart/summary/{}/'.format(obj.nome))
+            params += '}'
+            return format_html('''<div id="map"></div><script>window.onload = loadFinestraMappa()</script>''')
         else:
             return ''
     mapa.short_description = ''
+
+    def get_summary(self, obj):
+        if obj.nome:
+            html= '''<a href="%s/djakart/summary/%s/" target="_blank"> Download GeoJSON summary</a>''' % (SITE_SUBPATH, obj.nome)
+            return format_html(html)
+        else:
+            return ''
+    get_summary.short_description = 'GeoJSON Summary'
 
     def get_project(self, obj):
         if obj.nome:
@@ -416,7 +459,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             if obj.base.cambiamenti_non_registrati:
                 raise ("OPERAZIONE DI MERGE NON CONSENTITA: La versione {} ha cambiamenti in sospeso".format(obj.base.nome))
             
-            obj.base.config_user(request.user.username, request.user.email)
+            obj.base.config_user(request.user.username or "user_name_config_needed", request.user.email or "user_email_config@needed.org")
             obj.merge()
             return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.base.pk))
     
@@ -528,7 +571,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             return response
         
     @action(label="Export repository", description="Export repository as GeoPackage, Shapefiles or Esri Geodatabase")
-    @require_parameter("Formato_di_esportazione", ["Geopackage", "Shapefiles", "GeoDataBase"])
+    @require_parameter("Formato_di_esportazione", ["Geopackage", "Shapefiles"]) #, "GeoDataBase" (not supported on current GDAL)
     def esporta(self, request, obj, **kwargs):
         if obj.pk:
             if kwargs["Formato_di_esportazione"] == "Geopackage":
@@ -578,7 +621,6 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             for file in files:
                 file_path = os.path.join(root, file)
                 archive_path = os.path.relpath(file_path, dir_tmp)
-                print (archive_path)
                 zip.write(file_path, archive_path)
                 os.remove(file_path)
 
@@ -590,7 +632,6 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
         # fix for Linux zip files read in Windows
         for filename in zip.filelist:
-            print (filename)
             filename.create_system = 0
 
         zip.close()

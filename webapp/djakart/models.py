@@ -34,6 +34,7 @@ from .kart_api import (
     config_user_versione,
     list_versioned_tables,
     geo_tables,
+    version_details,
     KART_PGUSER,
     KART_PGUSER_PWD
 ) 
@@ -43,12 +44,15 @@ import json
 import uuid
 import re
 import requests
+import shutil
 from xml.sax.saxutils import escape
 from urllib.parse import quote,unquote,parse_qs
 import xml.etree.ElementTree as ET
 
 BASE_MAPPING_SERVICE = os.environ.get("QGIS_SERVER_EXTERNAL","qgis_server_external")
+SITE_SUBPATH = os.environ.get("SITE_SUBPATH","")
 SRID = os.environ.get("REPO_CRS")
+ARCHIVED_DIRNAME = os.environ.get("ARCHIVED_DIRNAME", "ARCHIVED_VERSIONS")
 
 try:
     TEST = settings.TEST
@@ -170,6 +174,8 @@ def cached(func):
     timecachedfuncs = ('status','has_conflicts','is_merging',)
     def wrapper(*args, **kwargs):
         versione = args[0]
+        if versione.archiviato:
+            return func(*args, **kwargs)
         try:
             cached_props = versione.load_cache()
         except KartException: #fallback al commit più recente
@@ -224,8 +230,12 @@ class version(models.Model):
     referente = models.ForeignKey(settings.AUTH_USER_MODEL ,blank=True, null=True, on_delete=models.SET_NULL,limit_choices_to={'groups__name': 'gis'}, verbose_name="ownership", )
     riservato = models.BooleanField(verbose_name="reserved",default=False)
     reserved_ids = models.IntegerField(default=100)
+    entry_commit = models.CharField(max_length=50, blank=True, null=True)
+    archiviato = models.BooleanField(default=False)
 
     def salva_cache(self, update=None):
+        if self.archiviato:
+            return
         start = datetime.now()
         if os.path.exists(os.path.join('/kart_versions',self.nome+".json")):
             os.remove(os.path.join('/kart_versions',self.nome+".json"))
@@ -311,7 +321,16 @@ class version(models.Model):
         return self.log_json_()
     
     def log_json_(self):
-        return log_versione(self.nome, jsonoutput=True)
+        if self.archiviato:
+            path = os.path.join('/kart_versions',self.nome+".geojson")
+            with open (path,"r") as lf:
+                commit_archivio = json.load(lf)
+            log_archivio = []
+            for c in commit_archivio["features"]:
+                log_archivio.append(c["properties"])
+            return log_archivio
+        else:
+            return log_versione(self.nome, jsonoutput=True)
     
     @property
     @cached
@@ -376,9 +395,11 @@ class version(models.Model):
         pass
         
     def is_merged_(self):
-        log = self.log_json_()
-        if self.base and log:
-            last_commit_hash = log[0]["commit"]
+        if self.archiviato:
+            return True
+        lc = self.last_commit_(as_json=True)
+        last_commit_hash = self.last_commit_(as_json=True)["commit"]
+        if self.base and last_commit_hash:
             base_log_hash = [l["commit"] for l in self.base.log_json_()]
             return last_commit_hash in base_log_hash
 
@@ -394,7 +415,7 @@ class version(models.Model):
     def last_commit(self):
         return self.last_commit_()
 
-    def last_commit_(self):
+    def last_commit_(self, as_json=False):
         j = self.log_json_()
         if j:
             log = j[0]
@@ -404,7 +425,10 @@ class version(models.Model):
                 "message": '---',
                 "commitTime": '---',
             }
-        return "{hash} - {mesg} - {date}".format(hash=log["abbrevCommit"], mesg=log["message"].replace("\n", " "), date=log["commitTime"][:10])
+        if as_json:
+            return log
+        else:   
+            return "{hash} - {mesg} - {date}".format(hash=log["abbrevCommit"], mesg=log["message"].replace("\n", " "), date=log["commitTime"][:10])
 
     def merge(self, annulla=False, conferma=False):
         merge_versione(self.nome, abort=annulla, confirm=conferma)
@@ -439,10 +463,44 @@ class version(models.Model):
     
     def aggiorna_progetto(self):
         writeQgs(self)
+    
+    def sommario_versione(self, force_base=False):
+        rif_link_version = self.base if force_base else self
+        #versione_name = self.nome if self.base else "%s_pub" % self.nome
+        archive_path = os.path.join('/kart_versions',self.nome+".geojson")
+        range_from = self.entry_commit
+        range_to = self.last_commit_(as_json=True)["commit"]
+        perim = version_details(self.nome, range_from, range_to, link_prefix=SITE_SUBPATH+"/djakart/diff/{}".format(rif_link_version.nome))
+        perim_json = json.dumps(perim, indent=2)
+        with open (archive_path,"w") as af:
+            af.write(perim_json)
+        return perim_json
+    
+    def archivia_versione(self):
+        self.sommario_versione(force_base=True)
+        if not os.path.exists(os.path.join('/kart_versions', ARCHIVED_DIRNAME)):
+            os.makedirs(os.path.join('/kart_versions', ARCHIVED_DIRNAME))
+        shutil.move(os.path.join('/kart_versions', self.nome), os.path.join('/kart_versions', ARCHIVED_DIRNAME, self.nome))
+        self.archiviato = True
+        self.save()
 
     @property
     def kart_tables(self):
         return list_versioned_tables(self.nome)
+    
+    @property
+    def entrypoint(self):
+        if self.base:
+            if self.is_merged:
+                for commit in self.log_json:
+                    if not self.nome in commit["message"]:
+                        return commit["commit"]
+            else:
+                for local_commit in self.log_json:
+                    for base_commit in self.base.log_json:
+                        if local_commit["commit"] == base_commit["commit"]:
+                            return base_commit["commit"]
+        return "undetermined"
     
     def import_template(self,tmplpath):
         with open(tmplpath,"r") as template_file:
@@ -458,8 +516,6 @@ class version(models.Model):
             python_element.set("type", "QString")
             python_element.text = "{{ pythonmacro }}"
             template_source = ET.tostring(template_root,encoding='unicode')
-
-            print (ET.tostring(prop_element,encoding='unicode'))
             
             custom_order_section = re.search('<custom-order enabled="0">((.|\n)*?)<\/custom-order>', template_source) 
             layer_items = re.finditer("<item>((.|\n)*?)<\/item>", custom_order_section.group()) 
@@ -494,7 +550,7 @@ class version(models.Model):
     def save(self, *args, **kwargs):
         self.nome = slugify(self.nome).upper()
         if not self.pk is None:
-            kwargs["update_fields"] = ['note','template_qgis','referente','riservato','extent','reserved_ids']
+            kwargs["update_fields"] = ['note','template_qgis','referente','riservato','extent','reserved_ids','entry_commit','archiviato']
         else:
             if self.riservato and not self.referente:
                 self.riservato = False
@@ -502,6 +558,8 @@ class version(models.Model):
                 self.reserved_ids = self.base.reserved_ids
                 crea_nuova_versione(self.nome,self.base.nome,riserva_id=self.reserved_ids)
                 self.progetto = get_qgs_filename(self.nome)
+                self.entry_commit = self.base.last_commit_(as_json=True)["commit"]
+                print ("Entry commit for version %s set to %s" % (self.nome, self.entry_commit))
                 self.extent = self.base.extent
             else:
                 crea_nuovo_repository(self.nome,bare=False,readonly_workingcopy=self.schema)
