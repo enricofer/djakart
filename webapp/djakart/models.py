@@ -35,6 +35,7 @@ from .kart_api import (
     list_versioned_tables,
     geo_tables,
     version_details,
+    serial_pk_setup,
     KART_PGUSER,
     KART_PGUSER_PWD
 ) 
@@ -557,6 +558,8 @@ class version(models.Model):
             if self.base:
                 self.reserved_ids = self.base.reserved_ids
                 crea_nuova_versione(self.nome,self.base.nome,riserva_id=self.reserved_ids)
+                serial_pk_setup(self.schema, aumento=self.reserved_ids)
+                serial_pk_setup(self.base.schema, as_version=self.schema)
                 self.progetto = get_qgs_filename(self.nome)
                 self.entry_commit = self.base.last_commit_(as_json=True)["commit"]
                 print ("Entry commit for version %s set to %s" % (self.nome, self.entry_commit))

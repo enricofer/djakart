@@ -260,8 +260,9 @@ def crea_nuova_versione(nuova_versione,base,tipo="pg",riserva_id=100):
         new_wc = create_workingcopy(nuova_versione,uri,force=True)
         grant_select_schema(nuova_versione)
         #crea_fdw(nuova_versione)
-        serial_pk_setup(nuova_versione, aumento=riserva_id)
-        serial_pk_setup(base, as_version=nuova_versione)
+        #istruzioni successive spostate a model che contiene logica per determinazione dello schema collegato al repository
+        #serial_pk_setup(nuova_versione, aumento=riserva_id)
+        #serial_pk_setup(base, as_version=nuova_versione)
 
 
 def get_pg_uri(v):
