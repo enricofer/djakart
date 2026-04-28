@@ -224,7 +224,7 @@ class mvt_view(ListView):
     # Table to query for MVT data, and columns to
 # include in the tiles.
     TABLE = {
-        'table':       'dbt_export',
+        'table':       'dbt_bind',
         'srid':        '3003',
         'geomColumn':  'geom',
         'attrColumns': None
@@ -297,6 +297,7 @@ class mvt_view(ListView):
         tbl['env'] = self.envelopeToBoundsSQL(env)
         if not tbl['attrColumns']:
             tbl['attrColumns'] = self.getAttrs()
+        print("attrColumns",tbl['attrColumns'])
         # Materialize the bounds
         # Select the relevant geometry and clip to MVT bounds
         # Convert to MVT format
@@ -330,11 +331,35 @@ class mvt_view(ListView):
         
         return None
     
-    def getAttrs(self):
+    def getAttrs_(self):
         with self.DATABASE_CONNECTION.cursor() as cur:
             cur.execute("""
 select array_to_string(array(select '"' || column_name || '"' from information_schema.columns 
 where table_schema = '{repo}' and table_name = '{layer}' and column_name != '{geomfield}'),',')""".format(
+                repo=self.repo,
+                layer=self.layer,
+                geomfield = self.TABLE["geomColumn"]
+            ))
+            return cur.fetchone()[0]
+    
+    def getAttrs(self):
+        # vale anche per le viste materializzate
+        with self.DATABASE_CONNECTION.cursor() as cur:
+            cur.execute("""
+select array_to_string(array( 
+    select '"' || attr.attname || '"'
+from pg_catalog.pg_attribute as attr
+join pg_catalog.pg_class as cls on cls.oid = attr.attrelid
+join pg_catalog.pg_namespace as ns on ns.oid = cls.relnamespace
+join pg_catalog.pg_type as tp on tp.oid = attr.atttypid
+where 
+    ns.nspname = '{repo}'
+    and cls.relname = '{layer}'
+    and attr.attnum >= 1
+	and attr.attname != '{geomfield}'
+order by 
+    attr.attnum
+),',')""".format(
                 repo=self.repo,
                 layer=self.layer,
                 geomfield = self.TABLE["geomColumn"]
