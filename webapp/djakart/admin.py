@@ -397,7 +397,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                 elif obj.cambiamenti_non_registrati and not obj.is_faulty:
                     html = '''
 <strong>The current version has not committed edits: 
-    <a href="{site_subpath}/djakart/diff/{versione}/HEAD/" target="_blank"> Verify</a>
+    <a href="{site_subpath}/djakart/diff/{versione}/HEAD/" target="_blank"> Verify</a><a href="{site_subpath}/djakart/version/{versione}/actions/commit/" target="_blank"> Commit</a>
 </strong> 
     '''.format(site_subpath=SITE_SUBPATH, versione=obj.nome)
                 else:
@@ -414,7 +414,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             if obj.archiviato:
                 params += 'archiviato: true,'
             if os.path.exists("/kart_versions/{}.geojson".format(obj.nome)):
-                params += 'polyJSON: "{}",'.format(SITE_SUBPATH + '/djakart/summary/{}/'.format(obj.nome))
+                params += 'polyJSON: "{}",'.format(SITE_SUBPATH + '/djakart/vsummary/{}/'.format(obj.nome))
             params += '}'
             return format_html('''<div id="map"></div><script>window.onload = loadFinestraMappa()</script>''')
         else:
@@ -423,7 +423,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
 
     def get_summary(self, obj):
         if obj.nome:
-            html= '''<a href="%s/djakart/summary/%s/" target="_blank"> Download GeoJSON summary</a>''' % (SITE_SUBPATH, obj.nome)
+            html= '''<a href="%s/djakart/vsummary/%s/" target="_blank"> Download GeoJSON summary</a>''' % (SITE_SUBPATH, obj.nome)
             return format_html(html)
         else:
             return ''
