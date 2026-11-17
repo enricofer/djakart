@@ -54,6 +54,43 @@
       position: relative;
       bottom: 0.4em;
     }
+
+    .itemtab {
+      border-top: 1px dotted black;
+      padding-left: 0.5em;
+      padding-right: 0.5em;
+    }
+
+    .value-ancestor {
+      background-color: #ff7e7e;;
+    }
+
+    .value-theirs {
+      background-color: #85fc85;
+    }
+
+    .value-ours {
+      background-color: #7979fc;
+    }
+
+    .value {
+      padding-top: 0.3em !important;
+      border-bottom: 1px dotted black;
+    }
+
+    th {
+      font-weight: bold;
+    }
+
+    th.title {
+      padding-left: 0.7em;
+      text-align: left;
+    }
+
+    th.prop {
+      text-align: center;
+    }
+
     td {
       vertical-align: top !important;
     }
@@ -116,25 +153,36 @@ var decodifica = {
 }
 
 function get_conflict_element_group(feat_tit, items) {
-  var htmlgroup = ''+
-'<fieldset>' +
-`    <legend>${feat_tit}</legend>`
+  var htmlgroup = `<fieldset><table><tr><th class="title">${feat_tit}</th>`
+  for (let key in items[0].properties) {
+    htmlgroup += `<th class="prop">${key}</th>`
+  }
+  htmlgroup += "</tr>"
+
 
   items.forEach(item => {
     let item_id = item.id;
     let classname = item_id.split(":").at(-1)
     let conflict_name = item_id.split(":").slice(0,-1).join(":")
     let d = decodifica[classname]
-    htmlgroup += '    <div>' +
+    htmlgroup += '    <tr><td class="itemtab"><div>' +
 `      <input type="radio" id="${item_id}" name="${feat_tit}" value="${classname}">` + 
-`      <label class="${classname}" for="${item_id}">VERSION ${d} - ${classname}</label>` + 
-'    </div>'
+`      <label class="${classname}" for="${item_id}">VERSIONE ${d} - ${classname}</label>` + 
+'    </div></td>'
+
+    for (let key in item.properties) {
+      let val = item.properties[key]
+      htmlgroup += `<td class="itemtab value value-${classname}">${val}</td>`
+    }
+
+    htmlgroup += "</tr>"
+
   })
 
-  htmlgroup += '    <div>' +
+  htmlgroup += '    <tr><td class="itemtab"><div>' +
 `      <input type="radio" id="unresolved" name="${feat_tit}" value="unresolved" checked>` + 
 `      <label class="unresolved" for="unresolved">LASCIA IRRISOLTO</label>` + 
-'    </div>' +
+'    </div></td></tr></table>' +
 '</fieldset>'
 
   return htmlgroup
@@ -289,7 +337,9 @@ window.onload = function(e){
 
     <input type="submit" name="confirmation" value="{% if continue %}Completa Merge{% else %}Solve conflicts{% endif %}"/>
 
-    <input type="submit" name="confirmation" value="Solve conflicts renumbering 'theirs' version"/>
+    <!--<input type="submit" name="confirmation" value="Solve conflicts renumbering 'theirs' version"/>-->
+    
+    <input type="submit" name="confirmation" value="Prepara la versione 'ours' rinumerando gli indici"/> 
     
   </form>
 {% endblock %}

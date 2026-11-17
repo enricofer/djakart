@@ -44,7 +44,7 @@ class KartException(Exception):
     pass
 
 
-def executeCmd(commands, cmd=False, path=None, jsonoutput=False, feedback=None):
+def executeCmd(commands, cmd=False, path=None, jsonoutput=False, feedback=None, env={}):
     if not cmd:
         commands.insert(0, KART_EXE)
     if jsonoutput:
@@ -55,9 +55,15 @@ def executeCmd(commands, cmd=False, path=None, jsonoutput=False, feedback=None):
         executeCmd.env = os.environ.copy()
         if "PYTHONHOME" in executeCmd.env:
             executeCmd.env.pop("PYTHONHOME")
+    
+    if env:
+        for key,value in env.items():
+            executeCmd.env[key] = value
 
     # always set the use helper env var as it is long lived and the setting may have changed
-    #executeKart.env['KART_USE_HELPER'] = '1' if setting(HELPERMODE) else ''
+    #executeCmd.env['KART_USE_HELPER'] = '1' if setting(HELPERMODE) else ''
+    if "merge" in commands:
+        print ("MERGE ENV", executeCmd.env)
 
     try:
         encoding = "utf-8" #locale.getdefaultlocale()[1] or 
@@ -287,6 +293,57 @@ def create_workingcopy(v, uri=None, force=False):
         cmds.append(uri)
     return executeCmd(cmds)
 
+def kart_version():
+    return executeCmd(["--version"])
+
+def fix_merge_pks(versione_ours, conflitti_json, avanzamento=0):
+    #keep theirs and renumber ours
+    versione_ours_path = os.path.join(settings.KART_REPO,versione_ours)
+    #versione_theirs_path = os.path.join(settings.KART_REPO,versione_theirs)
+    versione_ours_schema = get_schemadb(versione_ours)
+    #versione_theirs_schema = get_schemadb(versione_theirs)
+
+
+    with get_pg_versions_connection() as conn:
+        with conn.cursor() as cursor:
+            for table in conflitti_json["kart.conflicts/v1"]:
+
+                #step1 get tracked pk field for table
+                sql = """
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = '{table}'
+  AND column_default LIKE 'nextval%' and table_schema = '{schema}';""".format(
+                    schema=versione_ours,
+                    table=table
+                )
+                cursor.execute(sql)
+                pk_field  = cursor.fetchone()[0]
+                max_pk_field = None
+
+                for conflict_pk, conflict_record in conflitti_json["kart.conflicts/v1"][table]["feature"].items():
+
+                    #step2 get max_value for ours version
+                    if not max_pk_field:
+                        sql = """SELECT max("{field}") FROM "{schema}"."{table}";""".format(
+                            schema=versione_ours_schema,
+                            table=table,
+                            field=pk_field
+                        )
+                        cursor.execute(sql)
+                        max_pk_field  = cursor.fetchone()[0] + avanzamento + 1
+                    else:
+                        max_pk_field +=1
+
+                    sql = """UPDATE "{schema}"."{table}" SET "{field}"={newval} WHERE "{field}"={oldval};""".format(
+                        schema=versione_ours,
+                        table=table,
+                        field=pk_field,
+                        oldval=conflict_pk,
+                        newval=max_pk_field
+                    )
+                    cursor.execute(sql)
+
 
 def merge_versione(versione, abort=False, confirm=False):
     versione_path = os.path.join(settings.KART_REPO,versione)
@@ -299,13 +356,13 @@ def merge_versione(versione, abort=False, confirm=False):
             status = json.loads(status_versione(versione, as_json=True))
             theirs = status["kart.status/v2"]["merging"]["theirs"]
             versione_merging = theirs.get("branch") or theirs.get("abbrevCommit")
-            confirm_cmd = executeCmd(["--repo", versione_path, "merge", "--continue","-m","merge %s con risoluzione conflitti" % versione_merging])
+            confirm_cmd = executeCmd(["--repo", versione_path, "merge", "--continue","-m","merge %s con risoluzione conflitti" % versione_merging], env={"EDITOR":"true","GIT_EDITOR":"true"})
         else:
             master_path = get_remote(versione)
             master_versione = os.path.split(master_path)[-1]
             push_cmd = executeCmd(["--repo", versione_path, "push", "origin", versione])
-            #chkout_cmd = executeKart(["--repo", master_path, "checkout", "main"])
-            merge_cmd = executeCmd(["--repo",master_path,"merge","--ff", versione])
+            #chkout_cmd = executeCmd(["--repo", master_path, "checkout", "main"])
+            merge_cmd = executeCmd(["--repo",master_path,"merge","--ff", versione], env={"EDITOR":"true","GIT_EDITOR":"true"})
             if ("Nothing to commit, working copy clean" in status_versione(master_path)) or ("No working copy" in status_versione(master_path)):
                 #non dovrebbe cancellare branch con conflitti in fase di merge
                 delete_branch_cmd = executeCmd(["--repo",master_path,"branch","-d",versione])
@@ -341,11 +398,19 @@ def aggiorna_riferimenti(versione):
     res.append(kart_cmd(versione+"_pub",reset_arg))
 
 
-def pull_versione(versione):  
+def pull_versione(versione, branch_remoto="main"):  
     versione_path = os.path.join(settings.KART_REPO,versione)
     #master_path = get_remote(versione)
     if os.path.exists(versione_path):
-        push_cmd = executeCmd(["--repo", versione_path, "pull", "origin"])
+        push_cmd = executeCmd(["--repo", versione_path, "pull", "origin", branch_remoto, "--no-editor"])
+
+
+
+def pull_versione_darapper(versione, branch_remoto="main"):  
+    versione_path = os.path.join(settings.KART_REPO,versione)
+    #master_path = get_remote(versione)
+    if os.path.exists(versione_path):
+        push_cmd = executeCmd(["--repo", versione_path, "pull", "origin", branch_remoto, "--no-editor"]) #
 
 
 def kart_cmd(versione,args):
@@ -571,7 +636,7 @@ def commit_detail(versione, hash, link_prefix=None):
             feature["properties"]["link"] = link_prefix + "/{}//".format(hash)
         return feature
 
-def version_details(versione, range_from,range_to, link_prefix=None):
+def version_details(versione, range_from, range_to, link_prefix=None, strict=True):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
         jlog = log_versione(versione,jsonoutput=True)
@@ -590,9 +655,11 @@ def version_details(versione, range_from,range_to, link_prefix=None):
 
         feat_commits = []
         for idx,commit in enumerate(commits):
-            print ("COMMIT",idx, commit["message"], commit["commit"])
-            feat = commit_detail(versione, commit["commit"], link_prefix=link_prefix)
-            feat_commits.append(feat)
+            print("version_details",versione, commit["message"])
+            if not strict or (commit["message"].startswith(versione)):
+                print ("COMMIT",idx, commit["message"], commit["commit"])
+                feat = commit_detail(versione, commit["commit"], link_prefix=link_prefix)
+                feat_commits.append(feat)
         geojson = {
             "type": "FeatureCollection",
             "features": feat_commits
@@ -600,22 +667,26 @@ def version_details(versione, range_from,range_to, link_prefix=None):
         return geojson
 
 
-def conflitti_versione(versione, crs=SRID):
+def conflitti_versione(versione, crs=SRID, format='geojson'):
     versione_path = os.path.join(settings.KART_REPO,versione)
     if os.path.exists(versione_path):
-        conflicts_dir = os.path.join(versione_path,'conflicts')
-        cmd = executeCmd(["--repo",versione_path,"conflicts", "--crs", crs,"-o","geojson","--output",conflicts_dir])
-        feats = []
-        for gj in os.listdir(conflicts_dir):
-            conflict_path = os.path.join(conflicts_dir,gj)
-            with open (conflict_path,'r') as gjf:
-                feats = feats + json.loads(gjf.read())["features"]
-            os.remove(conflict_path)
+        if format == 'geojson':
+            conflicts_dir = os.path.join(versione_path,'conflicts')
+            cmd = executeCmd(["--repo",versione_path,"conflicts", "--crs", crs,"-o","geojson","--output",conflicts_dir])
+            feats = []
+            for gj in os.listdir(conflicts_dir):
+                conflict_path = os.path.join(conflicts_dir,gj)
+                with open (conflict_path,'r') as gjf:
+                    feats = feats + json.loads(gjf.read())["features"]
+                os.remove(conflict_path)
 
-        return {
-                "type": "FeatureCollection",
-                "features": feats
-        }
+            return {
+                    "type": "FeatureCollection",
+                    "features": feats
+            }
+        elif format == 'json':
+            cmd = executeCmd(["--repo", versione_path, "conflicts", "-o", "json"])
+            return json.loads(cmd)
 
 
 def resolve_conflitto(versione, tag_conflitto, risoluzione):
@@ -718,14 +789,6 @@ def recover_uncommitted_nulls(versione):
                 with conn.cursor() as cursor:
                     cursor.execute(sql)
 
-def get_schema(schema):
-    sql = """ SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname in ('{schema}', '{schema}_pub');""".format(schema=schema)
-    with get_pg_versions_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(sql)
-            return cursor.fetchone()[0]
-
-
 def get_schemas():
     sql = """ SELECT nspname FROM pg_catalog.pg_namespace;"""
     with get_pg_versions_connection() as conn:
@@ -734,6 +797,17 @@ def get_schemas():
             return [row[0] for row in cursor.fetchall()]
 
 
+def get_schemadb(version_name):
+    sql = """
+SELECT nspname FROM (
+	SELECT *,replace(nspname,'_pub','') as nspname_clean FROM pg_catalog.pg_namespace 
+) as s
+WHERE nspname_clean = '{version_name}';""".format(version_name=version_name)
+    with get_pg_versions_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(sql)
+            return cursor.fetchone()[0]
+
 def get_sequences(schema):
     sql = """SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = '{schema}' """.format(schema=schema)
     with get_pg_versions_connection() as conn:
@@ -741,43 +815,56 @@ def get_sequences(schema):
             cursor.execute(sql)
             return [row[0] for row in cursor.fetchall()]
 
-
 def serial_pk_setup(version, as_version=None, aumento=100):
     with get_pg_versions_connection() as conn:
         with conn.cursor() as cursor:
             base_path = get_remote(version)
+            print("base_path",base_path)
             if base_path:
                 base = os.path.split(base_path)[-1]
-                base_schema = get_schema(base)
+                base_schema = get_schemadb(base)
+                print("base_schema",base_schema)
                 sequences = get_sequences(base_schema)
+                print("sequences",sequences)
                 for tab in list_versioned_tables(base):
-                    if not (tab + "_fid_seq") in sequences:
-                        continue
-                    sql = """SELECT last_value FROM "{schema}"."{table}_fid_seq";""".format(schema=version, table=tab)
-                    cursor.execute(sql)
-                    version_min_pk = cursor.fetchone()[0]
-                    sql = """SELECT last_value FROM "{schema}"."{table}_fid_seq";""".format(schema=base_schema, table=tab)
-                    cursor.execute(sql)
-                    base_min_pk = cursor.fetchone()[0]
-                    min_pk = base_min_pk if base_min_pk > version_min_pk else version_min_pk + aumento
-                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=version, table=tab, val=min_pk)
-                    cursor.execute(sql)
-                    print (sql)
-                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=base_schema, table=tab, val=min_pk)
-                    cursor.execute(sql)
-                    print (sql)
+                    print("tab",tab)
+                    tab_in_seq = False
+                    for s in sequences:
+                        if s.startswith(tab):
+                            tab_in_seq = True
+                            break
+                    if tab_in_seq:
+                        sql = """SELECT last_value FROM "{schema}"."{seq}";""".format(schema=version, seq=s)
+                        cursor.execute(sql)
+                        version_min_pk = cursor.fetchone()[0]
+                        sql = """SELECT last_value FROM "{schema}"."{seq}";""".format(schema=base_schema, seq=s)
+                        cursor.execute(sql)
+                        base_min_pk = cursor.fetchone()[0]
+                        print("BASE",base_schema, "PK", base_min_pk)
+                        min_pk = base_min_pk if base_min_pk > version_min_pk else version_min_pk + aumento
+                        sql = """ALTER SEQUENCE "{schema}"."{seq}" RESTART WITH {val}""".format(schema=version, seq=s, val=min_pk)
+                        cursor.execute(sql)
+                        print (sql)
+                        sql = """ALTER SEQUENCE "{schema}"."{seq}" RESTART WITH {val}""".format(schema=base_schema, seq=s, val=min_pk)
+                        cursor.execute(sql)
+                        print (sql)
             elif as_version:
-                ref_schema = get_schema(as_version)
+                ref_schema = get_schemadb(as_version)
                 sequences = get_sequences(ref_schema)
                 for tab in list_versioned_tables(version):
-                    if not (tab + "_fid_seq") in sequences:
-                        continue
-                    sql = """SELECT last_value FROM "{schema}"."{table}_fid_seq";""".format(schema=ref_schema, table=tab)
-                    cursor.execute(sql)
-                    base_min_pk = cursor.fetchone()[0]
-                    min_pk = base_min_pk 
-                    sql = """ALTER SEQUENCE "{schema}"."{table}_fid_seq" RESTART WITH {val}""".format(schema=version, table=tab, val=min_pk)
-                    cursor.execute(sql)
+                    tab_in_seq = False
+                    for s in sequences:
+                        if s.startswith(tab):
+                            tab_in_seq = True
+                            continue
+                    if tab_in_seq:
+                        sql = """SELECT last_value FROM "{schema}"."{seq}";""".format(schema=ref_schema, seq=s)
+                        cursor.execute(sql)
+                        base_min_pk = cursor.fetchone()[0]
+                        min_pk = base_min_pk 
+                        sql = """ALTER SEQUENCE "{schema}"."{seq}" RESTART WITH {val}""".format(schema=version, seq=s, val=min_pk)
+                        cursor.execute(sql)
+
 
 
 def get_commit_boundary(versione, commit, output='wkt'):

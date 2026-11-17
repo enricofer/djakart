@@ -23,6 +23,7 @@ from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .models import version, can_modify, modelli, basemap
+from .views import apply_fix_pks
 from .kart_api import (
     crea_nuova_versione,
     elimina_versione, 
@@ -199,14 +200,14 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                         "site_subpath": SITE_SUBPATH or "",
                     }
                     return TemplateResponse(request, "admin/resolve_conflicts.html", context)
-                elif request.GET.get("confirmation") == "Risolvi i conflitti":
+                elif request.GET.get("confirmation") == "Solve conflicts":
                     #kwargs['resolution'] = request.GET.get('resolution') 
                     for key,val in request.GET.items():
                         if not key in ('csrfmiddlewaretoken', 'confirmation'):
                             if val != "unresolved":
                                 esito = obj.resolve(key,val)
                 elif request.GET.get("confirmation") == "Completa Merge":
-                    kart_cmd(obj.nome,["merge","--continue","-m", '"Completa merge di %s in %s"' % (version_name, obj.nome)])
+                    kart_cmd(obj.nome,["merge","--continue","-m", '"Completa merge di %s in %s"' % (version_name, obj.nome)], env={"EDITOR":"true","GIT_EDITOR":"true"})
                     obj.salva_cache()
                     version_obj = version.objects.get(nome=version_name)
                     version_obj.salva_cache()
@@ -215,6 +216,9 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
                     obj.salva_cache()
                     version_obj = version.objects.get(nome=version_name)
                     version_obj.salva_cache()
+
+                elif request.GET.get("confirmation") == "Prepara la versione 'ours' rinumerando gli indici":
+                    apply_fix_pks(obj)
 
 
                 return func(modeladmin, request, obj, **kwargs)
@@ -488,7 +492,7 @@ class versioniAdmin(DjangoObjectActions, admin.GISModelAdmin):#admin.OSMGeoAdmin
             obj.merge(conferma=True)
             return HttpResponseRedirect("%s/admin/djakart/version/%s/" % (SITE_SUBPATH, obj.pk))
     
-    @action(label="Update", description="Update status cache")
+    @action(label="Update from base", description="Update new changes from base repository")
     @require_confirmation
     def aggiorna(self, request, obj):
         if obj.pk:

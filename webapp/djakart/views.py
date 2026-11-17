@@ -16,6 +16,9 @@ from .kart_api import (
     show_versione,
     _diff_view,
     commit_versione,
+    conflitti_versione,
+    fix_merge_pks,
+    merge_versione,
     version_details,
     genera_diff_versione,
     restore_versione,
@@ -138,6 +141,19 @@ def kart_api(request,cmdstring):
     repo_path = os.path.join(settings.KART_REPO,repo)
     args = ["--repo", repo_path ] + cmds[1:]
     clean_args = [a.replace("|","/") for a in args]
+
+    if 'file' in clean_args:
+        print ("KARTAPI prefile", clean_args)
+        print("FILES", request.FILES)
+        uploaded_file = request.FILES.get("file")
+        print(uploaded_file)
+        with open(f"/tmp/{uploaded_file.name}", "wb") as f:
+            for chunk in uploaded_file.chunks():
+                f.write(chunk)
+        clean_args[clean_args.index('file')] = f"/tmp/{uploaded_file.name}"
+
+    print ("KARTAPI CLEAN", clean_args)
+        
     res = executeCmd(clean_args) #,jsonoutput=True
     try:
         jsres = json.loads(res)
@@ -401,3 +417,19 @@ order by
         b = io.BytesIO(pbf)
 
         return FileResponse(b)
+
+def apply_fix_pks(obj):
+    if obj.has_conflicts_():
+        dettaglio_conflitti = conflitti_versione(obj.nome, format='json')
+        merge_versione(obj.nome, abort=True)
+        fix_merge_pks(obj.nome, dettaglio_conflitti, avanzamento=obj.reserved_ids)
+        obj.commit("fix pks")
+        obj.salva_cache()
+        return dettaglio_conflitti
+
+def fix(request, versione_id):
+    obj = versioni.objects.get(pk=versione_id)
+    dettaglio_conflitti = apply_fix_pks(obj)
+    if dettaglio_conflitti:
+        return JsonResponse({"status":"OK", "versione": obj.nome, "conflitti": dettaglio_conflitti})
+    return JsonResponse({"status":"KO", "versione": obj.nome, "conflitti": "la versione non ha conflitti"})

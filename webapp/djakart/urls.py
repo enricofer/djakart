@@ -16,6 +16,7 @@ urlpatterns = [
     re_path(r'^setextent/(\d+)/$', views.set_version_extent, name='set_version_extent'),
     re_path(r'^show/(\w+)/$', views.show, name='status'),
     re_path(r'^qgs/(\w+)/$', views.QGS_progetto, name='qgs'),
+    re_path(r'^fix/(\w+)/$', views.fix, name='fix'),
     re_path(r'^basemaps/(background|foreground)/$', views.basemaps_js, name='basemaps'),
     re_path(r'^vparams/(\d+)/$', views.params_js, name='params_js'),
     re_path(r'^diff-view/(\w+)/$', views.diff_view, name='diffview'),

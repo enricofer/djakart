@@ -441,8 +441,16 @@ class version(models.Model):
         #    kart_cmd(self.base.nome+"_pub",["fetch","origin"])
         #    kart_cmd(self.base.nome+"_pub",["checkout","origin/main"])
 
-    def aggiorna(self):
+    def aggiorna_legacy(self):
         pull_versione(self.nome)
+        self.salva_cache()
+
+    def aggiorna(self):
+        if self.base == self.origine:
+            branch_remoto = 'main'
+        else:
+            branch_remoto = self.base.nome
+        pull_versione(self.nome, branch_remoto)
         self.salva_cache()
 
     def undo(self, force=None):
